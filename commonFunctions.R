@@ -2,30 +2,6 @@
 #To load it run:
 #source("commonFunctions.R")
 
-ProportionPlot <- function(object, name1, name2, cols=NULL){
-	#Tris function creates Proportion plot in % for two variables in the seurat object 
-	#Example use: ProportionPlot(PBMC, "cluster", "Celltype") 
-  ##if you want to change colours use:
-  # ...cols = c("CLEC10Ahigh"="dodgerblue1","ICAM1+"="limegreen","ID2+"="deepskyblue","ISG15+"="mediumorchid","LYVE1+"="aquamarine3", "S100A12+"="deeppink","SPP1+"="firebrick1","TREM2high"="darkolivegreen3","TREM2low"="orange2"))
-	
-	#Get number of cells per cluster
-	slot.metadata = slot(object, "meta.data")
-	clust.table.group <- table(getElement(slot.metadata,name1), getElement(slot.metadata,name2))
-
-	#Convert to proportion/percentage of total cells in each sample
-	clust.prop.group <- as.data.frame(prop.table(x = clust.table.group, margin = 2))
-  
-	if (is.null(cols)==TRUE) {
-  	#Plot as stacked bar plot
-  	ggplot(data=clust.prop.group, aes(x=Var2, y=Freq, fill=Var1)) + theme_linedraw() +
-  	geom_bar(stat="identity", color="black") + labs(x=name2, y="Proportion of Cells", fill=name1)
-	} else {
-	  ggplot(data=clust.prop.group, aes(x=Var2, y=Freq, fill=Var1)) + theme_linedraw() +
-	    geom_bar(stat="identity", color="black") + labs(x=name2, y="Proportion of Cells", fill=name1) + 
-	    scale_fill_manual("legend", values = cols)
-	  }
-	}
-
 #This is part of VlnPlot.median function
 median.stat <- function(x){
 	out <- quantile(x, probs = c(0.5))

@@ -20,6 +20,13 @@ module load apps/R/4.3.0
 ############# MY CODE #############
 
 # cellranger count command
-cellranger count --localcores=20 --localmem=40 --id=#ID --fastqs=#FASTQS --transcriptome=/users/ds286q/project0001/10XReference/Human/refdata-gex-GRCh38-2020-A --sample=#ID --r1-length=26 --include-introns=#INTRON --output-dir=/users/ds286q/project0001/Dom/pipeline/mapped/#ID
+mkdir -p #OUTPUT/#ID
+#echo #OUTPUT
+
+if [ #BAM = true ]; then
+	cellranger count --localcores=20 --localmem=40 --id=#ID --fastqs=#FASTQS --transcriptome=/users/ds286q/project0001/10XReference/Human/refdata-gex-GRCh38-2020-A --sample=#ID --r1-length=26 --include-introns=#INTRON --output-dir=#OUTPUT/#ID
+else
+	cellranger count --localcores=20 --localmem=40 --id=#ID --fastqs=#FASTQS --transcriptome=/users/ds286q/project0001/10XReference/Human/refdata-gex-GRCh38-2020-A --sample=#ID --r1-length=26 --include-introns=#INTRON --output-dir=#OUTPUT/#ID --no-bam
+fi
 
 # Optionally, run additional commands or scripts here

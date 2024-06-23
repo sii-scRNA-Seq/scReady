@@ -2,7 +2,7 @@
 
 ############# SLURM SETTINGS #############
 #SBATCH --account=project0001   # account name (mandatory), if the job runs under a project then it'll be the project name, if not then it should =none
-#SBATCH --job-name=pipeline        # some descriptive job name of your choice
+#SBATCH --job-name=R_pipeline        # some descriptive job name of your choice
 #SBATCH --output=%x-%j.out      # output file name will contain job name + job ID
 #SBATCH --error=%x-%j.err       # error file name will contain job name + job ID
 #SBATCH --partition=nodes        # which partition to use, default on MARS is “nodes"
@@ -19,5 +19,11 @@ module load apps/R/4.3.0
 
 ############# MY CODE #############
 
-#from: https://hcc.unl.edu/docs/submitting_jobs/app_specific/submitting_r_jobs/
-Rscript /users/ds286q/project0001/Dom/pipeline/SeuratGeneration.R /users/ds286q/project0001/Dom/pipeline/Rcodeoutput.txt
+# Assuming input file is passed as a parameter to the script
+optional_csv_file="$1"
+
+if [ -z "$optional_csv_file" ]; then
+    sbatch --account=project0001 --wrap="Rscript /users/ds286q/project0001/Dom/pipeline/SeuratGeneration.R"
+else
+    sbatch --account=project0001 --wrap="Rscript /users/ds286q/project0001/Dom/pipeline/SeuratGeneration.R $optional_csv_file"
+fi

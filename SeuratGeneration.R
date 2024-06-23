@@ -1,4 +1,25 @@
-#v 0.2
+#!/usr/bin/env Rscript
+
+# Get command-line arguments
+args <- commandArgs(trailingOnly = TRUE)
+
+# Check the number of arguments
+if (length(args) > 1) {
+  stop("Zero or one argument must be supplied (optional CSV file).", call. = FALSE)
+}
+
+optional_csv_file <- ifelse(length(args) == 1, args[1], NA)
+
+# If optional CSV file is provided, load it
+if (!is.na(optional_csv_file)) {
+  optional_data <- read.csv(optional_csv_file, row.names=1)
+  # cat(optional_data)
+  # Perform additional analysis with optional_data
+  cat("Optional CSV file provided: ", optional_csv_file, "\n")
+}
+
+#v 0.5
+
 library(Seurat)
 library(dplyr)
 library(SoupX)
@@ -10,16 +31,24 @@ to.skip = c()
 path.to.read = "/users/ds286q/project0001/Dom/pipeline/mapped" 
 runs = list.dirs(path = path.to.read, full.names = FALSE, recursive = FALSE) 
 
-#Read the 10X folder
+date=Sys.Date()
+pdf.filename = paste0(date,"output.pdf") 
+pdf(paste0("/users/ds286q/project0001/Dom/pipeline/mapped/",pdf.filename))
+
+cat("Reading 10X folders with SoupX\n")
+
+#Read the 10X folder, with SoupX
 for (name in runs) {
   if (name %in% to.skip) {
   } else {
-    print(name)
+    cat(name)
+    cat("\n")
     path_name=paste(path.to.read, name, sep="/")
     path_name=paste0(path_name,"/outs")
     #print(path_name)
     #list.data[[name]]=Read10X(path_name)
     list.data[[name]]=SoupX.clean.from.CellRanger(path_name)
+    cat("\n")
   }
 }
 rm(runs)
@@ -41,6 +70,17 @@ for (i in 1:length(list.data)) {
 }
 length(Seurat.list)==length(list.data)
 
+merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
+cat("Before QC\n")
+plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.hb", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.ribo", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident"))
+rm(merged.Seurat)
+gc()
+
 # QC, Norm, Scale, RunPCA
 for (i in 1:length(Seurat.list)) {
   #print(i)
@@ -61,9 +101,28 @@ for (i in 1:length(Seurat.list)) {
   Seurat.list[[i]] <- RunPCA(object = Seurat.list[[i]], npcs = 50)
 }
 
-length(Seurat.list)==length(list.data) 
-rm(list.data) 
+length(Seurat.list)==length(list.data)
+rm(list.data)
 gc()
 
+merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
+cat("After QC\n")
+plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.hb", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.ribo", split.by = "orig.ident"))
+plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident"))
+#rm(merged.Seurat)
+gc()
+
+dev.off()
+
+if (!is.na(optional_csv_file)) {
+	merged.Seurat <- make.add.meta(merged.Seurat, optional_data)
+}
+
 #save
-saveRDS(Seurat.list, "/users/ds286q/project0001/Dom/pipeline/mapped/Seurat.list.rds")
+filename=paste0(date,"_Seurat.merged.rds")
+#BUG: this path need to be relative
+saveRDS(merged.Seurat, paste0("/users/ds286q/project0001/Dom/pipeline/mapped/",filename))

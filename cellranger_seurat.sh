@@ -18,9 +18,21 @@ module load apps/cellranger
 module load apps/R/4.3.0
 
 ############# MY CODE #############
+#
+# RUN:
+# sbatch this_script.sh lib.csv <optional_metadata_file.csv>
+#
+# cellranger_job_template.sh needs to be in the same folder
+# 
+# lib.csv has:
+# fastqs,sample,count introns,generate bam,output folder
+# /path/to/fastq/files/,FASTQID1,true,false,/path/to/output/folder
+# /path/to/fastq/files/,FASTQID1,false,true,/path/to/output/folder
+# 
 
 # Assuming input file is passed as a parameter to the script
 input_file="$1"
+optional_csv_file="$2"
 
 # Check if input file is provided
 if [ -z "$input_file" ]; then
@@ -48,16 +60,24 @@ while read -r line; do
     fields=($line)
 
     # Check number of fields
-    if [ ${#fields[@]} -eq 3 ]; then
+    if [ ${#fields[@]} -eq 5 ]; then
         fastqs="${fields[0]}"
         ID="${fields[1]}"
         intron="${fields[2]}"
+	bam="${fields[3]}"
+	output="${fields[4]}"
+
+        echo "FASTQS: $fastqs"
+        echo "ID: $ID"
+        echo "INTRON: $intron"
+	echo "BAM: $bam"
+        echo "OUTPUT: $output"
 
         echo "Submitting job for ID: $ID"
 
         # Create a SLURM script from template
         script_file="cellranger_job_${ID}.sh"
-        sed -e "s|#ID|${ID}|g; s|#FASTQS|${fastqs}|g; s|#INTRON|${intron}|g" cellranger_job_template.sh > "$script_file"
+        sed -e "s|#ID|${ID}|g; s|#FASTQS|${fastqs}|g; s|#INTRON|${intron}|g; s|#BAM|${bam}|g; s|#OUTPUT|${output}|g" cellranger_job_template.sh > "$script_file"
 
         # Convert the script to Unix line endings
         dos2unix "$script_file"
@@ -66,10 +86,15 @@ while read -r line; do
         job_id=$(sbatch "$script_file" | awk '{print $4}')
         job_ids+=("$job_id")
     else
-        echo "Error: This line does not have exactly 3 columns. Line: $line"
+        echo "Error: This line does not have exactly 5 columns. Line: $line"
     fi
 done < "$input_file"
 
 # Submit R script job with dependencies
 dependency_list=$(IFS=:; echo "${job_ids[*]}")
-sbatch --account=project0001 --dependency=afterok:$dependency_list --wrap="Rscript /users/ds286q/project0001/Dom/pipeline/SeuratGeneration.R /users/ds286q/project0001/Dom/pipeline/Rcodeoutput.txt"
+
+if [ -z "$optional_csv_file" ]; then
+    sbatch --account=project0001 --dependency=afterok:$dependency_list --wrap="Rscript /users/ds286q/project0001/Dom/pipeline/SeuratGeneration.R"
+else
+    sbatch --account=project0001 --dependency=afterok:$dependency_list --wrap="Rscript /users/ds286q/project0001/Dom/pipeline/SeuratGeneration.R $optional_csv_file"
+fi
