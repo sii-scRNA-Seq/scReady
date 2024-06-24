@@ -522,17 +522,17 @@ find.significant.PCs <- function(Seurat.Object) {
 }
 
 DoubletMark <- function(Seurat.Object, dim, sct = FALSE, num.cores = 5, prop.doublets = NULL, n.cell.recovered=NULL, verbose = FALSE) {
-  # v. 0.4
+  # v. 0.5
   # can provide either prop.doublets expected or n.cell.recovered are mandatory
   # improved % doublet version calculation
+  # bug dim fixed
   
   #if (is.null(dim)) {
   #  dim = find.significant.PCs(Seurat.Object)
   #}
   if (is.null(prop.doublets)) {
     if (is.null(n.cell.recovered)) {
-      n.cell.recovered=ncol(Seurat.Object)
-      print(paste("The number or cells is:",n.cell.recovered, sep = " "))
+      stop("prop.doublets or n.cell.recovered need to be provided")
     }
     #Theoretical prop.doublets calculation
     #from https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/76
@@ -582,7 +582,7 @@ DoubletMark <- function(Seurat.Object, dim, sct = FALSE, num.cores = 5, prop.dou
   if (verbose) {
     print(names(Seurat.Object@meta.data))
   }
-  Seurat.Object <- doubletFinder_v3(Seurat.Object, PCs = 1:20, pK = pK_choose, nExp = nExp_poi, reuse.pANN = FALSE, sct = sct)
+  Seurat.Object <- doubletFinder_v3(Seurat.Object, PCs = 1:dim, pK = pK_choose, nExp = nExp_poi, reuse.pANN = FALSE, sct = sct)
   to_delete = names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))-1]
   
   #DF.cl.name = unique(colnames(Seurat.Object@meta.data))[length(colnames(Seurat.Object@meta.data))]
@@ -595,7 +595,7 @@ DoubletMark <- function(Seurat.Object, dim, sct = FALSE, num.cores = 5, prop.dou
   }
   
   #Seurat.Object@meta.data$to_delete <- NULL
-  Seurat.Object <- doubletFinder_v3(Seurat.Object, PCs = 1:20, pK = pK_choose, nExp = nExp_poi.adj, reuse.pANN = "Doublets Low stringency", sct = sct)
+  Seurat.Object <- doubletFinder_v3(Seurat.Object, PCs = 1:dim, pK = pK_choose, nExp = nExp_poi.adj, reuse.pANN = "Doublets Low stringency", sct = sct)
   #DF.cl.name.2 = unique(colnames(Seurat.Object@meta.data))[length(colnames(Seurat.Object@meta.data))]
   
   #to_delete = names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))-1]

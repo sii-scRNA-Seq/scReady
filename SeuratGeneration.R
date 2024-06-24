@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
 
+# v 0.6
+
 # Get command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -17,8 +19,6 @@ if (!is.na(optional_csv_file)) {
   # Perform additional analysis with optional_data
   cat("Optional CSV file provided: ", optional_csv_file, "\n")
 }
-
-#v 0.5
 
 library(Seurat)
 library(dplyr)
@@ -99,6 +99,26 @@ for (i in 1:length(Seurat.list)) {
   Seurat.list[[i]] <- FindVariableFeatures(Seurat.list[[i]], selection.method = "vst", nfeatures = 2000)
   Seurat.list[[i]] <- ScaleData(Seurat.list[[i]])
   Seurat.list[[i]] <- RunPCA(object = Seurat.list[[i]], npcs = 50)
+
+  #Find number of PCA to use explainig 99% variability (assuming npcs used is 100%)
+  min.pca=find.significant.PCs(Seurat.list[[i]], 0.95)
+  print(paste("PCA to be used", min.pca , sep=" "))
+
+  Seurat.list[[i]] <- RunUMAP(object = Seurat.list[[i]], dims = 1:min.pca)
+  Seurat.list[[i]] <- FindNeighbors(Seurat.list[[i]], dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
+
+  #plot = DimPlot(Seurat.list[[i]])
+  #plot = plot + plot_annotation(title = names(Seurat.list[i]), theme = theme(plot.title = element_text(hjust = 0.5)))
+  #print(plot)
+
+  #Find doublets
+  Seurat.list[[i]] = DoubletMark(Seurat.list[[i]], n.cell.recovered = Seurat.list[[i]]@misc$cell.recovered, dim=min.pca)
+  #plot1 <- DimPlot(GSK1.list[[i]], group.by = "Doublets Low stringency")
+  #plot2 <- DimPlot(GSK1.list[[i]], group.by = "Doublets High stringency")
+  #plot <- (plot1 + plot2)}
+  #plot = plot + plot_annotation(title = names(GSK1.list[[i]]), theme = theme(plot.title = 
+  #element_text(hjust = 0.5)))
+  #print(plot)
 }
 
 length(Seurat.list)==length(list.data)
@@ -119,6 +139,7 @@ gc()
 dev.off()
 
 if (!is.na(optional_csv_file)) {
+	Idents(merged.Seurat) <- "orig.ident"
 	merged.Seurat <- make.add.meta(merged.Seurat, optional_data)
 }
 
