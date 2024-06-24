@@ -502,19 +502,28 @@ Mark.cells <- function(Seurat.object, nFeature.low = 250, nFeature.high = 5000, 
 }
 
 find.significant.PCs <- function(Seurat.Object) {
+find.significant.PCs <- function(Seurat.Object, variance=0.9, st.dev=0.05) {
   ##Find a min PCA significant (90% variance & st.dev<5%) to use
   ##The Seurat.Object need "pca" slot filleds
   ##Example use: 
   ## min.pca = find.significant.PCs(Seurat.Object)
   
   ##Describe the code
+  if (variance>=1) {
+    simpleError("variance over 100%")
+  }
+  variance=variance*100
+  st.dev=st.dev*100
+  
   stdv <- Seurat.Object[["pca"]]@stdev
   sum.stdv <- sum(Seurat.Object[["pca"]]@stdev)
   percent.stdv <- (stdv / sum.stdv) * 100
   cumulative <- cumsum(percent.stdv)
   co1 <- which(cumulative > 90 & percent.stdv < 5)[1]
+  co1 <- which(cumulative > variance & percent.stdv < st.dev)[1]
   co2 <- sort(which((percent.stdv[1:length(percent.stdv) - 1] - 
                        percent.stdv[2:length(percent.stdv)]) > 0.1), 
+                       percent.stdv[2:length(percent.stdv)]) > 1-(variance/100)), 
               decreasing = T)[1] + 1
   min.pc <- min(co1, co2)
   print(min.pc)
