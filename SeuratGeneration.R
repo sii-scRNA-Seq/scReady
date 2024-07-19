@@ -1,8 +1,15 @@
 #!/usr/bin/env Rscript
 
-# v 0.7
+# v 0.8
+# R env in common
 
-### Define functions ###
+#########################################
+###				      ###
+#					#
+#	Functions definition		#
+#					#
+###				      ###
+#########################################
 
 SoupX.clean.from.CellRanger <- function(cellranger.folder) {
   #Clean your scRNAseq data from ambient contamination
@@ -361,10 +368,17 @@ PCA.sample <- function(Seurat.Object, sample.name = "orig.ident", nfeatures = 20
 }
 
 
-##############
-### Script ###
-##############
+#########################################
+### 				      ###
+#					#
+#		SCRIPT			#
+#					#
+###				      ###
+#########################################
 
+
+#set up the env
+.libPaths("/mnt/data/project0001/pipeline_R_lib")
 
 # Get command-line arguments
 args <- commandArgs(trailingOnly = TRUE)

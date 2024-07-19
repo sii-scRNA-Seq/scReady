@@ -7,7 +7,7 @@
 #SBATCH --error=pipeline-%j.err
 #SBATCH --partition=nodes
 #SBATCH --time=1-00:00:00
-#SBATCH --mem=50G
+#SBATCH --mem=1G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -103,8 +103,10 @@ dependency_list=$(IFS=:; echo "${job_ids[*]}")
 for folder in "${!unique_folders[@]}"; do
     mkdir -p $folder
     if [ -z "$optional_csv_file" ]; then
-        sbatch --account=project0001 --dependency=afterok:$dependency_list --wrap="Rscript SeuratGeneration.R $folder"
+	#echo sbatch --account=project0001 --wrap="Rscript $seurat_script $folder"	
+        sbatch --dependency=afterok:$dependency_list seurat_run_only.sh $folder
     else
-        sbatch --account=project0001 --dependency=afterok:$dependency_list --wrap="Rscript SeuratGeneration.R $folder $optional_csv_file"
+	#echo sbatch --account=project0001 --wrap="Rscript $seurat_script $folder $optional_csv_file"
+        sbatch --dependency=afterok:$dependency_list seurat_run_only.sh $folder $optional_csv_file
     fi
 done

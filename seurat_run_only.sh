@@ -7,10 +7,10 @@
 #SBATCH --error=R_pipeline-%j.err
 #SBATCH --partition=nodes
 #SBATCH --time=1-00:00:00
-#SBATCH --mem=50G
+#SBATCH --mem=100G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=5
 #SBATCH --ntasks-per-node=1
 
 ############# LOADING MODULES (optional) #############
@@ -22,24 +22,23 @@ module load apps/R/4.3.0
 # RUN:
 # sbatch this_script.sh folder_path <optional_metadata_file.csv>
 #
-# SeuratGeneration.R needs to be in the same folder 
+# SeuratGeneration.R needs to be in the same folder of this script 
 #
 # folder_path need to be a folder containing cellranger mappings
 
 folder="$1"
 optional_csv_file="$2"
 
-## Check if path is provided
+# Check if path is provided
 #if [ -z "$input_file" ]; then
 #    echo "Usage: $0 <path> [<optional_metadata_file.csv>]"
 #    exit 1
 #fi
 
 if [ -z "$optional_csv_file" ]; then
-    echo sbatch --account=project0001 --wrap="Rscript $seurat_script $folder"
-    sbatch --account=project0001 --wrap="Rscript SeuratGeneration.R $folder"
+    echo Rscript $seurat_script $folder
+    Rscript SeuratGeneration.R $folder
 else
-    echo sbatch --account=project0001 --wrap="Rscript $seurat_script $folder $optional_csv_file"
-    sbatch --account=project0001 --wrap="Rscript SeuratGeneration.R $folder $optional_csv_file"
+    echo Rscript $seurat_script $folder $optional_csv_file
+    Rscript SeuratGeneration.R $folder $optional_csv_file
 fi
-
