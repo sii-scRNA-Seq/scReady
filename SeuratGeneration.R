@@ -296,6 +296,81 @@ Calc.Perc.Features <- function(Seurat.object, mt.pattern = "^MT-", hb.pattern = 
   return(Seurat.object)
 }
 
+DoubletMark <- function(Seurat.Object, dim, sct = FALSE, num.cores = 5, prop.doublets = NULL, n.cell.recovered=NULL, verbose = FALSE) {
+  # v. 0.4
+  # can provide either prop.doublets expected or n.cell.recovered are mandatory
+  # improved % doublet version calculation
+  #if (is.null(dim)) {
+  #  dim = find.significant.PCs(Seurat.Object)
+  #}
+  
+  if (is.null(prop.doublets)) {
+    if (is.null(n.cell.recovered)) {
+      stop("prop.doublets or n.cell.recovered need to be provided")
+    }
+    #Theoretical prop.doublets calculation
+    #from https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/76
+    #Improved version (thanks Zuzanna for finding the issue), working better at high cell number 
+    prop.doublets = ((0.00076*n.cell.recovered)+0.0527)/100
+    print(paste("Proportion of cell doublets is (in %):",prop.doublets*100, sep = " "))
+  }
+  if (prop.doublets>0.5) {
+    stop("prop.doublets is too high")
+  }
+  print("paramSweep calculation...")
+  sweep.res <- DoubletFinder::paramSweep_v3(Seurat.Object, PCs = 1:dim, sct = sct, num.cores = num.cores)
+  sweep.stats <- DoubletFinder::summarizeSweep(sweep.res, GT = FALSE)
+  if (verbose){
+    print(sweep.stats)
+  }
+  bcmvn <- DoubletFinder::find.pK(sweep.stats)
+  if (verbose){
+    print(bcmvn)
+  }
+  ##From here:
+  ##https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/62
+  pK=as.numeric(as.character(bcmvn$pK))
+  BCmetric=bcmvn$BCmetric
+  pK_choose = pK[which(BCmetric %in% max(BCmetric))]
+  #plot pk:
+  #par(mar=c(5,4,4,8)+1,cex.main=1.2,font.main=2)
+  #plot(x = pK, y = BCmetric, pch = 16,type="b", col = "blue",lty=1)
+  #abline(v=pK_choose,lwd=2,col='red',lty=2)
+  #title("The BCmvn distributions")
+  #text(pK_choose,max(BCmetric),as.character(pK_choose),pos = 4,col = "red")
+  ## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+  annotations <- Seurat.Object@meta.data$seurat_clusters
+  homotypic.prop <- DoubletFinder::modelHomotypic(annotations)          
+  nExp_poi <- round(prop.doublets*nrow(Seurat.Object@meta.data))  ## Assuming prop.doublets doublet formation rate - tailor for your dataset
+  nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+  ## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+  if (verbose) {
+    print(names(Seurat.Object@meta.data))
+  }
+  Seurat.Object <- DoubletFinder::doubletFinder_v3(Seurat.Object, PCs = 1:dim, pK = pK_choose, nExp = nExp_poi, reuse.pANN = FALSE, sct = sct)
+  to_delete = names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))-1]
+  #DF.cl.name = unique(colnames(Seurat.Object@meta.data))[length(colnames(Seurat.Object@meta.data))]
+  names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))] = "Doublets Low stringency"
+  if (verbose){
+    print(names(Seurat.Object@meta.data))
+    print("####")
+    print(to_delete)
+  }
+  #Seurat.Object@meta.data$to_delete <- NULL
+  Seurat.Object <- DoubletFinder::doubletFinder_v3(Seurat.Object, PCs = 1:dim, pK = pK_choose, nExp = nExp_poi.adj, reuse.pANN = "Doublets Low stringency", sct = sct)
+  #DF.cl.name.2 = unique(colnames(Seurat.Object@meta.data))[length(colnames(Seurat.Object@meta.data))]
+  #to_delete = names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))-1]
+  names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))] = "Doublets High stringency"
+  #print(to_delete)
+  Seurat.Object@meta.data[to_delete] <- NULL
+  if (verbose){
+    print(names(Seurat.Object@meta.data))
+    print(DimPlot(Seurat.Object, group.by = "Doublets Low stringency"))
+    print(DimPlot(Seurat.Object, group.by = "Doublets High stringency"))
+  }
+  return(Seurat.Object)
+}
+
 QC.n.mad <- function(Seurat.object, n.mad=4) {
   #mod version for not plotting
   #Based on https://matthieuxmoreau.github.io/EarlyPallialNeurogenesis/html-Reports/Quality_Control.html code
@@ -425,7 +500,13 @@ for (name in runs) {
     path_name=paste0(path_name,"/outs")
     #print(path_name)
     #list.data[[name]]=Read10X(path_name)
-    list.data[[name]]=SoupX.clean.from.CellRanger(path_name)
+    
+    #If SoupX return error for low diversity (1 celltype, or low n of cells) get the classic load
+    list.data[[name]]=try(SoupX.clean.from.CellRanger(path_name))
+    if (inherits(list.data[[name]], "try-error")) {
+      path_name=paste0(path_name,"/filtered_feature_bc_matrix")
+      list.data[[name]]=Read10X(path_name)
+      }
     cat("\n")
   }
 }
@@ -478,10 +559,16 @@ for (i in 1:length(Seurat.list)) {
   Seurat.list[[i]] <- ScaleData(Seurat.list[[i]])
   Seurat.list[[i]] <- RunPCA(object = Seurat.list[[i]], npcs = 50)
 
-  #Find number of PCA to use explainig 99% variability (assuming npcs used is 100%)
-  min.pca=find.significant.PCs(Seurat.list[[i]], 0.95)
+  #Find number of PCA to use explainig 95% variability (assuming npcs used is 100%)
+  pca.percent.expl=find.significant.PCs(Seurat.list[[i]], 0.95)
+ 
+  all.pca = findPC::findPC(Seurat.list[[i]]@reductions$pca@stdev, number = length(Seurat.list[[i]]@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
+  print(all.pca)
+  all.pca = max(all.pca)
+  
+  min.pca = max(pca.percent.expl, all.pca)
   print(paste("PCA to be used", min.pca , sep=" "))
-
+  
   Seurat.list[[i]] <- RunUMAP(object = Seurat.list[[i]], dims = 1:min.pca)
   Seurat.list[[i]] <- FindNeighbors(Seurat.list[[i]], dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
 
@@ -489,16 +576,15 @@ for (i in 1:length(Seurat.list)) {
   #plot = plot + plot_annotation(title = names(Seurat.list[i]), theme = theme(plot.title = element_text(hjust = 0.5)))
   #print(plot)
 
-  ###Find doublets
+  ##Find doublets
   # DOESN'T WORK AT THE MOMENT
-  ##Seurat.list[[i]] = DoubletMark(Seurat.list[[i]], n.cell.recovered = Seurat.list[[i]]@misc$cell.recovered, dim=min.pca)
-  #plot1 <- DimPlot(GSK1.list[[i]], group.by = "Doublets Low stringency")
-  #plot2 <- DimPlot(GSK1.list[[i]], group.by = "Doublets High stringency")
-  #plot <- (plot1 + plot2)}
-  #plot = plot + plot_annotation(title = names(GSK1.list[[i]]), theme = theme(plot.title = 
-  #element_text(hjust = 0.5)))
-  #print(plot)
-}
+  Seurat.list[[i]] = DoubletMark(Seurat.list[[i]], n.cell.recovered = Seurat.list[[i]]@misc$cell.recovered, dim=min.pca)
+  plot1 <- DimPlot(Seurat.list[[i]], group.by = "Doublets Low stringency")
+  plot2 <- DimPlot(Seurat.list[[i]], group.by = "Doublets High stringency")
+  plot <- (plot1 + plot2)
+  plot = plot + plot_annotation(title = names(Seurat.list[[i]]), theme = theme(plot.title = element_text(hjust = 0.5)))
+  print(plot)
+ }
 
 length(Seurat.list)==length(list.data)
 rm(list.data)
@@ -524,6 +610,7 @@ if (!is.na(optional_csv_file)) {
 
 #save
 filename=paste0(date,"_Seurat.merged.rds")
+filename
 #print(paste0(path.to.read,filename))
 print(normalizePath(file.path(path.to.read, filename)))
 saveRDS(merged.Seurat, normalizePath(file.path(path.to.read, filename)))
