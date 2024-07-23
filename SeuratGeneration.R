@@ -582,7 +582,7 @@ for (i in 1:length(Seurat.list)) {
   plot1 <- DimPlot(Seurat.list[[i]], group.by = "Doublets Low stringency")
   plot2 <- DimPlot(Seurat.list[[i]], group.by = "Doublets High stringency")
   plot <- (plot1 + plot2)
-  plot = plot + plot_annotation(title = names(Seurat.list[[i]]), theme = theme(plot.title = element_text(hjust = 0.5)))
+  plot = plot + patchwork::plot_annotation(title = names(Seurat.list[[i]]), theme = theme(plot.title = element_text(hjust = 0.5)))
   print(plot)
  }
 
