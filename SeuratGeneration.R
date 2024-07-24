@@ -551,7 +551,7 @@ for (i in 1:length(Seurat.list)) {
   #plot3 <- FeatureScatter(GSK1.list[[i]], feature1 = "percent.MALAT1", feature2 = "percent.mt")
   #plot4 <- VlnPlot(GSK1.list[[i]], features = c("percent.ribo", "percent.hb"), ncol = 2)
   #plot <- ((plot1 + plot2) / (plot3 + plot4))
-  #plot = plot + plot_annotation(title = names(GSK1.list[[i]]), theme = ggplot2::theme(plot.title = element_text(hjust = 0.5)))
+  #plot = plot + plot_annotation(title = names(GSK1.list[[i]]), theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)))
   #print(plot)
 
   Seurat.list[[i]] <- NormalizeData(Seurat.list[[i]])
@@ -573,7 +573,7 @@ for (i in 1:length(Seurat.list)) {
   Seurat.list[[i]] <- FindNeighbors(Seurat.list[[i]], dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
 
   #plot = DimPlot(Seurat.list[[i]])
-  #plot = plot + plot_annotation(title = names(Seurat.list[i]), theme = ggplot2::theme(plot.title = element_text(hjust = 0.5)))
+  #plot = plot + plot_annotation(title = names(Seurat.list[i]), theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)))
   #print(plot)
 
   ##Find doublets
@@ -582,7 +582,7 @@ for (i in 1:length(Seurat.list)) {
   plot1 <- DimPlot(Seurat.list[[i]], group.by = "Doublets Low stringency")
   plot2 <- DimPlot(Seurat.list[[i]], group.by = "Doublets High stringency")
   plot <- (plot1 + plot2)
-  plot = plot + patchwork::plot_annotation(title = names(Seurat.list[[i]]), theme = ggplot2::theme(plot.title = element_text(hjust = 0.5)))
+  plot = plot + patchwork::plot_annotation(title = names(Seurat.list[[i]]), theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)))
   print(plot)
  }
 
