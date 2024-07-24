@@ -10,6 +10,9 @@ At moment you can run the script on MARS with
 lib.csv should look like:
 
 > fastqs,sample,count introns,generate bam,output folder
+> 
 > /path/to/fastq/files/,FASTQID1,true,false,/path/to/output/folder1
+> 
 > /path/to/fastq/files/,FASTQID2,false,true,/path/to/output/folder1
+> 
 > /path/to/fastq/files/,FASTQID3,true,true,/path/to/output/AnotherFolder
