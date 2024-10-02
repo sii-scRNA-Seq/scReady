@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-# v 0.8
-# R env in common
+# v 0.9
+# Added CITEseq handling
 
 #########################################
 ###				      ###
@@ -442,7 +442,64 @@ PCA.sample <- function(Seurat.Object, sample.name = "orig.ident", nfeatures = 20
   #You can load metadata to this seurat object, and plot factors with group.by
 }
 
+Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE, barcode.suffix=NULL) {
+  #v0.2: allow to change the souporcell.file barcode with a suffix
+  #Tris function creates will add your souporcell cluster.tsv file as metadata to a Seurat object 
+  #PBMC = Add.SNPs.HT(PBMC,"Mapped/clusters.tsv")
+  
+  SNPs = read.csv(souporcell.file, sep = "\t")
+  if (is.null(barcode.suffix)) {
+  } else {
+    SNPs$barcode = paste0(SNPs$barcode, barcode.suffix)
+  }
+  print("Seurat object barcode:")
+  print(head(colnames(Seurat.Object)))
+  print("SNPs file barcode:")
+  print(head(SNPs$barcode))
+  
+  common_barcode = intersect(colnames(Seurat.Object), SNPs$barcode)
+  print(paste("Number of cells barcoded: ",length(common_barcode)))
+  if (length(common_barcode)/length(colnames(Seurat.Object))<0.5) {
+    warning("Less than 50% barcode found")
+  }
+  rownames(SNPs) <- SNPs$barcode
+  SNPs <- SNPs[, c('status', 'assignment')]
+  SNPs$SNP_cluster <- SNPs$assignment
+  SNPs$SNP_status <- SNPs$status
+  SNPs$assignment <- NULL
+  SNPs$status <- NULL
+  if (verbose){
+    head(SNPs)  
+  }
+  Seurat.Object <- SeuratObject::AddMetaData(Seurat.Object, SNPs)
+  return(Seurat.Object)
+}
 
+extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils"), datatypeName = NULL) {
+	#Use:
+	#> my.HTO.table <- extract.HTO("/mypath/", c("HTO1","HTO6")))
+  
+  #once Scott update the package version on todata3 I can uncomment this
+  #if (utils::packageVersion("cellhashR")<"1.0.4") {
+  #  stop("cellhashR version = or > 1.0.4 needed")
+  #}
+  print("Process Count Matrix...")
+	barcodeData <- cellhashR::ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist, datatypeName = datatypeName)
+	print("Generate Cell Hashing Calls...")
+	calls.HTO <- cellhashR::GenerateCellHashingCalls(barcodeMatrix = barcodeData, methods = methods)
+
+	HTOtable <- data.frame(row.names = calls.HTO$cellbarcode)
+	HTOtable$HTO <- calls.HTO$consensuscall
+	HTOtable$HTO_status <- calls.HTO$consensuscall.global
+	rownames(HTOtable) <- paste0(rownames(HTOtable),"-1")
+
+	# Inspect negative cells:
+	print("Summarize Cells By Classification...")
+	cellhashR::SummarizeCellsByClassification(calls = calls.HTO, barcodeMatrix = barcodeData)
+	return(HTOtable)
+}
+
+ 
 #########################################
 ### 				      ###
 #					#
@@ -479,14 +536,17 @@ library(dplyr)
 library(SoupX)
 
 # Search the pipeline folder for mapped data
-list.data = c() 
+list.data = c()
+list.data.citeseq = c() 
+list.snp = c()
+list.hto = c()
 to.skip = c() 
 #path.to.read = "/users/ds286q/project0001/Dom/pipeline/mapped" 
 runs = list.dirs(path = path.to.read, full.names = FALSE, recursive = FALSE) 
 
 date=Sys.Date()
 pdf.filename = paste0(date,"_output.pdf") 
-pdf(normalizePath(file.path(path.to.read,pdf.filename)))
+pdf(normalizePath(file.path(path.to.read, pdf.filename)))
 
 cat("Reading 10X folders with SoupX\n")
 
@@ -497,16 +557,34 @@ for (name in runs) {
     cat(name)
     cat("\n")
     path_name=paste(path.to.read, name, sep="/")
+    #To check later for SNPs
+    if (file.exists(paste0(path_name,"/souporcell_results/clusters.tsv"))) {
+      list.snp[[name]]=paste0(path_name,"/souporcell_results/clusters.tsv")
+    }
     path_name=paste0(path_name,"/outs")
+    path_name_filtered=paste0(path_name,"/filtered_feature_bc_matrix")
+
     #print(path_name)
-    #list.data[[name]]=Read10X(path_name)
     
+    #this might contain CITEseq data
+    data=Read10X(path_name_filtered)
+    if (typeof(data)=="list") {
+      list.data.citeseq[[name]]=data$`Antibody Capture`
+      #Uncomment when able to install cellhashR
+      #HTO = try(extract.HTO(path_name_filtered, barcodeWhitelist = c("HTO1","HTO2","HTO3","HTO4","HTO5","HTO6"), datatypeName = "Antibody Capture"))
+      #if (inherits(list.hto[[name]], "try-error")) { 
+      #} else {list.hto[[name]]=HTO }
+    }
+
     #If SoupX return error for low diversity (1 celltype, or low n of cells) get the classic load
     list.data[[name]]=try(SoupX.clean.from.CellRanger(path_name))
     if (inherits(list.data[[name]], "try-error")) {
-      path_name=paste0(path_name,"/filtered_feature_bc_matrix")
-      list.data[[name]]=Read10X(path_name)
+      if (typeof(data)=="list"){
+         list.data[[name]]=data$`Gene Expression`
+      } else {
+         list.data[[name]]=data
       }
+    }
     cat("\n")
   }
 }
@@ -522,12 +600,38 @@ for (i in 1:length(list.data)) {
   #print(name)
   Seurat.object = CreateSeuratObject(counts = list.data[[i]], project = name)
   Seurat.object = Calc.Perc.Features(Seurat.object)
+  #Try to add CITEseq info
+
+  if (name %in% names(list.data.citeseq)) {
+    Seurat.object[['Protein']]=CreateAssayObject(counts = list.data.citeseq[[name]])
+  }
+
+  #Check and add SNPs
+  if (name %in% names(list.snp)) {
+    Seurat.object = try(Add.SNPs.HT(Seurat.object, list.snp[[name]]))
+  }
+  
+  if (name %in% names(list.hto)) {
+    Seurat.Object = try(SeuratObject::AddMetaData(Seurat.Object, list.hto[[name]]))
+  }
 
   Seurat.list[[name]] = Seurat.object
   rm(Seurat.object)
   gc()
 }
 length(Seurat.list)==length(list.data)
+
+#for (name in runs) {
+#  if (name %in% to.skip) {
+#  } else {
+#    cat(name)
+#    cat("\n")
+#    path_name=paste(path.to.read, name, sep="/")
+#    path_name=paste0(path_name,"/outs")
+#    #print(path_name)
+#    #list.data[[name]]=Read10X(path_name)
+
+saveRDS(Seurat.list, "/mnt/data/project0001/Dom/pipeline/TEST_Seurat_list.rds")
 
 merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
 cat("Before QC\n")
@@ -577,7 +681,6 @@ for (i in 1:length(Seurat.list)) {
   #print(plot)
 
   ##Find doublets
-  # DOESN'T WORK AT THE MOMENT
   Seurat.list[[i]] = DoubletMark(Seurat.list[[i]], n.cell.recovered = Seurat.list[[i]]@misc$cell.recovered, dim=min.pca)
   plot1 <- DimPlot(Seurat.list[[i]], group.by = "Doublets Low stringency")
   plot2 <- DimPlot(Seurat.list[[i]], group.by = "Doublets High stringency")
@@ -607,6 +710,23 @@ if (!is.na(optional_csv_file)) {
 	Idents(merged.Seurat) <- "orig.ident"
 	merged.Seurat <- make.add.meta(merged.Seurat, optional_data)
 }
+
+merged.Seurat <- FindVariableFeatures(merged.Seurat, selection.method = "vst", nfeatures = 2000)
+merged.Seurat <- ScaleData(merged.Seurat)
+merged.Seurat <- RunPCA(object = merged.Seurat, npcs = 50)
+
+#Find number of PCA to use explainig 95% variability (assuming npcs used is 100%)
+pca.percent.expl=find.significant.PCs(merged.Seurat, 0.95)
+
+all.pca = findPC::findPC(merged.Seurat@reductions$pca@stdev, number = length(merged.Seurat@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
+print(all.pca)
+all.pca = max(all.pca)
+
+min.pca = max(pca.percent.expl, all.pca)
+print(paste("PCA to be used", min.pca , sep=" "))
+
+merged.Seurat <- RunUMAP(object = merged.Seurat, dims = 1:min.pca)
+merged.Seurat <- FindNeighbors(merged.Seurat, dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
 
 #save
 filename=paste0(date,"_Seurat.merged.rds")

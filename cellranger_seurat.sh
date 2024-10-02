@@ -30,6 +30,18 @@ module load apps/R/4.3.0
 # /path/to/fastq/files/,FASTQID1,true,false,/path/to/output/folder1
 # /path/to/fastq/files/,FASTQID2,false,true,/path/to/output/folder2
 # /path/to/fastq/files/,FASTQID3,true,true,/path/to/output/folder3
+#
+# lib.csv can have either:
+# 5 columns: fastqs,sample,count introns,generate bam,output folder
+# /path/to/fastq/files/,FASTQID1,true,false,/path/to/output/folder1
+# /path/to/fastq/files/,FASTQID2,false,true,/path/to/output/folder2
+# /path/to/fastq/files/,FASTQID3,true,true,/path/to/output/folder3
+#
+# 7 columns: fastqs,sample,count introns,generate bam,output folder,souporcell flag,souporcell parameter
+# /path/to/fastq/files/,FASTQID1,true,false,/path/to/output/folder1,true,3
+# /path/to/fastq/files/,FASTQID2,false,true,/path/to/output/folder2,false,0
+# /path/to/fastq/files/,FASTQID3,true,true,/path/to/output/folder3,true,2
+
 
 # Assuming input file is passed as a parameter to the script
 input_file="$1"
@@ -64,7 +76,10 @@ while read -r line; do
     fields=($line)
 
     # Check number of fields
-    if [ ${#fields[@]} -eq 5 ]; then
+    num_fields=${#fields[@]}
+
+    # Check number of fields
+    if [ $num_fields -eq 5 ] || [ $num_fields -eq 7 ]; then
         fastqs="${fields[0]}"
         ID="${fields[1]}"
         intron="${fields[2]}"
@@ -90,11 +105,22 @@ while read -r line; do
         job_id=$(sbatch "$script_file" | awk '{print $4}')
         job_ids+=("$job_id")
 
+	# If there are 7 fields and the souporcell flag is true, submit souporcell job
+        if [ $num_fields -eq 7 ]; then
+            souporcell_flag="${fields[5]}"
+            souporcell_param="${fields[6]}"
+
+            if [ "$souporcell_flag" == "true" ]; then
+                echo "Submitting souporcell job for: $souporcell_param"
+                sbatch do.souporcellV2.sh "${output}/${ID}" "$souporcell_param"
+            fi
+        fi
+
         # Collect unique output folders
         unique_folders["$output"]=1
 
     else
-        echo "Error: This line does not have exactly 5 columns. Line: $line"
+	echo "Error: This line does not have exactly 5 or 7 columns. Line: $line"
     fi
 done < "$input_file"
 

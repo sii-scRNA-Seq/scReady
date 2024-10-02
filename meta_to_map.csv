@@ -1,0 +1,8 @@
+Unique_ID,library_ID,Condition,Patient,Sequenced,Biopsy_in,Fresh_or_frozen,Store,Digested,Sorted,Tissue
+N31-RNA,N31-RNA,N3,SA595,G_series,Rome,Frozen,Cryostore,Glasgow,CD45+,wrist
+N32-RNA,N32-RNA,N3,SA573,G_series,Rome,Frozen,Cryostore,Glasgow,CD45+,TBC
+N33-RNA,N33-RNA,N3,SA601,G_series,Rome,Frozen,Cryostore,Glasgow,CD45+,TBC
+N36-RNA,N36-RNA,N3,2 patients,G_series,Rome,Frozen,Cryostore,Glasgow,Whole ST,TBC
+N41-RNA,N41-RNA,N4,SA372,G_series,Rome,Frozen,Cryostore,Glasgow,TBC,TBC
+N52-RNA,N52-RNA,N5,2 patients,G_series,Rome,Frozen,Cryostore,Glasgow,Whole ST,TBC
+N53-RNA,N53-RNA,N5,SA589,G_series,Rome,Frozen,Cryostore,Glasgow,CD45+,wrist
