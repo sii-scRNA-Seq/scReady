@@ -1,0 +1,41 @@
+22-08-25
+bug AmbientRNA removal solved, added extra info on its results
+add extra prints for clarity
+HTO code bug solved
+Seurat 5
+miniforge env
+
+15-05-25
+Lavinia found doubletFinder was not working ok.
+Implemented scDblFinder, but I had to port everything to miniforge
+
+14-05-25
+Completed Seurat V5 porting
+cellhashR now works,
+8 column metadata instead of 9
+Tocheck: is doubletFinder working ok??
+
+18-04-25
+New pipeline script:
+less files
+tested for only RNA: works
+tested for RNA + SNPs: works
+tested for RNA + SNPs + Citeseq: mapping ok, seurat not generated
+
+
+15-05-25
+Lavinia found doubletFinder was not working ok.
+Implemented scDblFinder, but I had to port everything to miniforge
+
+14-05-25
+Completed Seurat V5 porting
+cellhashR now works,
+8 column metadata instead of 9
+Tocheck: is doubletFinder working ok??
+
+18-04-25
+New pipeline script:
+less files
+tested for only RNA: works
+tested for RNA + SNPs: works
+tested for RNA + SNPs + Citeseq: mapping ok, seurat not generated

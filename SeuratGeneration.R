@@ -1,15 +1,24 @@
 #!/usr/bin/env Rscript
 
-# v 0.9
-# Added CITEseq handling
+# v 1.0.5
+# bug AmbientRNA removal solved, added extra info on its results
+# add extra prints for clarity
 
-#########################################
-###				      ###
-#					#
-#	Functions definition		#
-#					#
-###				      ###
-#########################################
+# v 1.0.4
+# HTO code bug solved
+
+# v 1.0.3
+# Seurat 5
+# scDblFinder instead of DoubletFinder
+# miniforge env
+
+#############################
+###			  ###
+#			    #
+#   Functions definition    #
+#			    #
+###			  ###
+#############################
 
 SoupX.clean.from.CellRanger <- function(cellranger.folder) {
   #Clean your scRNAseq data from ambient contamination
@@ -296,81 +305,6 @@ Calc.Perc.Features <- function(Seurat.object, mt.pattern = "^MT-", hb.pattern = 
   return(Seurat.object)
 }
 
-DoubletMark <- function(Seurat.Object, dim, sct = FALSE, num.cores = 5, prop.doublets = NULL, n.cell.recovered=NULL, verbose = FALSE) {
-  # v. 0.4
-  # can provide either prop.doublets expected or n.cell.recovered are mandatory
-  # improved % doublet version calculation
-  #if (is.null(dim)) {
-  #  dim = find.significant.PCs(Seurat.Object)
-  #}
-  
-  if (is.null(prop.doublets)) {
-    if (is.null(n.cell.recovered)) {
-      stop("prop.doublets or n.cell.recovered need to be provided")
-    }
-    #Theoretical prop.doublets calculation
-    #from https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/76
-    #Improved version (thanks Zuzanna for finding the issue), working better at high cell number 
-    prop.doublets = ((0.00076*n.cell.recovered)+0.0527)/100
-    print(paste("Proportion of cell doublets is (in %):",prop.doublets*100, sep = " "))
-  }
-  if (prop.doublets>0.5) {
-    stop("prop.doublets is too high")
-  }
-  print("paramSweep calculation...")
-  sweep.res <- DoubletFinder::paramSweep_v3(Seurat.Object, PCs = 1:dim, sct = sct, num.cores = num.cores)
-  sweep.stats <- DoubletFinder::summarizeSweep(sweep.res, GT = FALSE)
-  if (verbose){
-    print(sweep.stats)
-  }
-  bcmvn <- DoubletFinder::find.pK(sweep.stats)
-  if (verbose){
-    print(bcmvn)
-  }
-  ##From here:
-  ##https://github.com/chris-mcginnis-ucsf/DoubletFinder/issues/62
-  pK=as.numeric(as.character(bcmvn$pK))
-  BCmetric=bcmvn$BCmetric
-  pK_choose = pK[which(BCmetric %in% max(BCmetric))]
-  #plot pk:
-  #par(mar=c(5,4,4,8)+1,cex.main=1.2,font.main=2)
-  #plot(x = pK, y = BCmetric, pch = 16,type="b", col = "blue",lty=1)
-  #abline(v=pK_choose,lwd=2,col='red',lty=2)
-  #title("The BCmvn distributions")
-  #text(pK_choose,max(BCmetric),as.character(pK_choose),pos = 4,col = "red")
-  ## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
-  annotations <- Seurat.Object@meta.data$seurat_clusters
-  homotypic.prop <- DoubletFinder::modelHomotypic(annotations)          
-  nExp_poi <- round(prop.doublets*nrow(Seurat.Object@meta.data))  ## Assuming prop.doublets doublet formation rate - tailor for your dataset
-  nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
-  ## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
-  if (verbose) {
-    print(names(Seurat.Object@meta.data))
-  }
-  Seurat.Object <- DoubletFinder::doubletFinder_v3(Seurat.Object, PCs = 1:dim, pK = pK_choose, nExp = nExp_poi, reuse.pANN = FALSE, sct = sct)
-  to_delete = names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))-1]
-  #DF.cl.name = unique(colnames(Seurat.Object@meta.data))[length(colnames(Seurat.Object@meta.data))]
-  names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))] = "Doublets Low stringency"
-  if (verbose){
-    print(names(Seurat.Object@meta.data))
-    print("####")
-    print(to_delete)
-  }
-  #Seurat.Object@meta.data$to_delete <- NULL
-  Seurat.Object <- DoubletFinder::doubletFinder_v3(Seurat.Object, PCs = 1:dim, pK = pK_choose, nExp = nExp_poi.adj, reuse.pANN = "Doublets Low stringency", sct = sct)
-  #DF.cl.name.2 = unique(colnames(Seurat.Object@meta.data))[length(colnames(Seurat.Object@meta.data))]
-  #to_delete = names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))-1]
-  names(Seurat.Object@meta.data)[length(colnames(Seurat.Object@meta.data))] = "Doublets High stringency"
-  #print(to_delete)
-  Seurat.Object@meta.data[to_delete] <- NULL
-  if (verbose){
-    print(names(Seurat.Object@meta.data))
-    print(DimPlot(Seurat.Object, group.by = "Doublets Low stringency"))
-    print(DimPlot(Seurat.Object, group.by = "Doublets High stringency"))
-  }
-  return(Seurat.Object)
-}
-
 QC.n.mad <- function(Seurat.object, n.mad=4) {
   #mod version for not plotting
   #Based on https://matthieuxmoreau.github.io/EarlyPallialNeurogenesis/html-Reports/Quality_Control.html code
@@ -500,17 +434,13 @@ extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, meth
 }
 
  
-#########################################
-### 				      ###
-#					#
-#		SCRIPT			#
-#					#
-###				      ###
-#########################################
-
-
-#set up the env
-.libPaths("/mnt/data/project0001/pipeline_R_lib")
+#############################
+###		          ###
+#			    #
+#	   SCRIPT	    #
+#			    #
+###			  ###
+#############################
 
 # Get command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -532,6 +462,7 @@ if (!is.na(optional_csv_file)) {
 }
 
 library(Seurat)
+library(SingleCellExperiment)
 library(dplyr)
 library(SoupX)
 
@@ -540,8 +471,12 @@ list.data = c()
 list.data.citeseq = c() 
 list.snp = c()
 list.hto = c()
+list.ambient.result = c()
 to.skip = c() 
-#path.to.read = "/users/ds286q/project0001/Dom/pipeline/mapped" 
+
+#replace me for a test:
+#path.to.read = "/mnt/autofs/data/userdata/project0001/Dom/Apr25/test"
+path.to.read = sub("/$", "", path.to.read) 
 runs = list.dirs(path = path.to.read, full.names = FALSE, recursive = FALSE) 
 
 date=Sys.Date()
@@ -556,41 +491,73 @@ for (name in runs) {
   } else {
     cat(name)
     cat("\n")
-    path_name=paste(path.to.read, name, sep="/")
-    #To check later for SNPs
-    if (file.exists(paste0(path_name,"/souporcell_results/clusters.tsv"))) {
-      list.snp[[name]]=paste0(path_name,"/souporcell_results/clusters.tsv")
+	
+    path_name = file.path(path.to.read, name)
+    path_name_outs = file.path(path_name, "outs")
+
+    # Check for souporcell results
+    if (file.exists(file.path(path_name, "souporcell_results", "clusters.tsv"))) {
+      print("Found SNPs souporcell folder")
+      list.snp[[name]] = file.path(path_name, "souporcell_results", "clusters.tsv")
     }
-    path_name=paste0(path_name,"/outs")
-    path_name_filtered=paste0(path_name,"/filtered_feature_bc_matrix")
+	
+    # Define paths for cellranger multi or count
+    sample_id = basename(name)
+    multi_path_filtered = file.path(path_name_outs, "per_sample_outs", sample_id, "count", "sample_filtered_feature_bc_matrix")
+    
+    if (dir.exists(multi_path_filtered)) {
+      # cellranger multi structure
+      print("Found cellranger multi structure")
+      path_name_filtered = multi_path_filtered
+    } else {
+      # cellranger count structure
+      print("Found cellranger count structure")
+      path_name_filtered = file.path(path_name_outs, "filtered_feature_bc_matrix")
+      path_name_raw = file.path(path_name_outs, "raw_feature_bc_matrix")
+    }
 
     #print(path_name)
     
-    #this might contain CITEseq data
+    #Read data, this might contain CITEseq data
+    print("Read10X data")
     data=Read10X(path_name_filtered)
+	
     if (typeof(data)=="list") {
+      print("Found CITEseq data")
       list.data.citeseq[[name]]=data$`Antibody Capture`
       #Uncomment when able to install cellhashR
-      #HTO = try(extract.HTO(path_name_filtered, barcodeWhitelist = c("HTO1","HTO2","HTO3","HTO4","HTO5","HTO6"), datatypeName = "Antibody Capture"))
-      #if (inherits(list.hto[[name]], "try-error")) { 
-      #} else {list.hto[[name]]=HTO }
+      print("trying hashtag...")
+      #HTO = try(extract.HTO(path_name_raw, barcodeWhitelist = colnames(data[["Gene Expression"]]), datatypeName = "Antibody Capture"))
+      HTO = try(extract.HTO(path_name_filtered, barcodeWhitelist = c("HTO1","HTO2","HTO3","HTO4","HTO5","HTO6"), datatypeName = "Antibody Capture"))  
+    if (inherits(HTO, "try-error")) { 
+	  print("HTO failed")
+      } else {
+	  list.hto[[name]]=HTO 
+	  print("HTO added")
+	  print(names(list.hto))
+	  }
     }
 
     #If SoupX return error for low diversity (1 celltype, or low n of cells) get the classic load
-    list.data[[name]]=try(SoupX.clean.from.CellRanger(path_name))
+    print("Removing ambient RNA")
+    list.data[[name]]=try(SoupX.clean.from.CellRanger(path_name_outs))
+    print("Done.")
     if (inherits(list.data[[name]], "try-error")) {
+	  list.ambient.result[[name]] = "Ambient removal failed"
       if (typeof(data)=="list"){
          list.data[[name]]=data$`Gene Expression`
       } else {
          list.data[[name]]=data
       }
-    }
+    } else {
+	  list.ambient.result[[name]] = "Ambient RNA removed"
+	}
     cat("\n")
   }
 }
 rm(runs)
 gc()
-#length(list.data)
+length(list.data)
 
 #Create seurat object
 Seurat.list = c() 
@@ -600,8 +567,21 @@ for (i in 1:length(list.data)) {
   #print(name)
   Seurat.object = CreateSeuratObject(counts = list.data[[i]], project = name)
   Seurat.object = Calc.Perc.Features(Seurat.object)
-  #Try to add CITEseq info
 
+  #Doublets
+  sce <- as.SingleCellExperiment(Seurat.object)
+  ### Calculate Singlets and Doublets ###
+  sce <- scDblFinder::scDblFinder(sce)
+
+  results <- data.frame("Barcode" = rownames(colData(sce)), "scDblFinder_DropletType" = sce$scDblFinder.class, "scDblFinder_Score" = sce$scDblFinder.score) 
+  rownames(results) <- results$Barcode
+  results$Barcode <- NULL
+
+  Seurat.object <- AddMetaData(Seurat.object, results)
+  Seurat.object$ambient.results = list.ambient.result[[name]]
+  rm(sce)
+
+  #Try to add CITEseq info
   if (name %in% names(list.data.citeseq)) {
     Seurat.object[['Protein']]=CreateAssayObject(counts = list.data.citeseq[[name]])
   }
@@ -612,7 +592,9 @@ for (i in 1:length(list.data)) {
   }
   
   if (name %in% names(list.hto)) {
-    Seurat.Object = try(SeuratObject::AddMetaData(Seurat.Object, list.hto[[name]]))
+	print("if ok, trying to add HTO")
+    Seurat.object = try(SeuratObject::AddMetaData(Seurat.object, list.hto[[name]]))
+	print(colnames(Seurat.object@meta.data))
   }
 
   Seurat.list[[name]] = Seurat.object
@@ -631,9 +613,20 @@ length(Seurat.list)==length(list.data)
 #    #print(path_name)
 #    #list.data[[name]]=Read10X(path_name)
 
-saveRDS(Seurat.list, "/mnt/data/project0001/Dom/pipeline/TEST_Seurat_list.rds")
+#save
+filename=paste0(date,"_Seurat.list.preQC.rds")
+#print(paste0(path.to.read,filename))
+#print(normalizePath(file.path(path.to.read, filename)))
+saveRDS(Seurat.list, normalizePath(file.path(path.to.read, filename)))
 
-merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
+#saveRDS(Seurat.list, "/mnt/data/project0001/Dom/pipeline/TEST_Seurat_list.rds")
+
+if(length(Seurat.list)>1) { 
+  merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
+} else {
+  merged.Seurat = Seurat.list[[1]]
+}
+
 cat("Before QC\n")
 plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident"))
 plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident"))
@@ -666,11 +659,13 @@ for (i in 1:length(Seurat.list)) {
   #Find number of PCA to use explainig 95% variability (assuming npcs used is 100%)
   pca.percent.expl=find.significant.PCs(Seurat.list[[i]], 0.95)
  
-  all.pca = findPC::findPC(Seurat.list[[i]]@reductions$pca@stdev, number = length(Seurat.list[[i]]@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
-  print(all.pca)
-  all.pca = max(all.pca)
+  ## this findPC function always underestimate the PCA to use, so I will remove it
+  #all.pca = findPC::findPC(Seurat.list[[i]]@reductions$pca@stdev, number = length(Seurat.list[[i]]@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
+  #print(all.pca)
+  #all.pca = max(all.pca)
   
-  min.pca = max(pca.percent.expl, all.pca)
+  #min.pca = max(pca.percent.expl, all.pca)
+  min.pca = pca.percent.expl
   print(paste("PCA to be used", min.pca , sep=" "))
   
   Seurat.list[[i]] <- RunUMAP(object = Seurat.list[[i]], dims = 1:min.pca)
@@ -681,10 +676,7 @@ for (i in 1:length(Seurat.list)) {
   #print(plot)
 
   ##Find doublets
-  Seurat.list[[i]] = DoubletMark(Seurat.list[[i]], n.cell.recovered = Seurat.list[[i]]@misc$cell.recovered, dim=min.pca)
-  plot1 <- DimPlot(Seurat.list[[i]], group.by = "Doublets Low stringency")
-  plot2 <- DimPlot(Seurat.list[[i]], group.by = "Doublets High stringency")
-  plot <- (plot1 + plot2)
+  plot <- DimPlot(Seurat.list[[i]], group.by = "scDblFinder_DropletType")
   plot = plot + patchwork::plot_annotation(title = names(Seurat.list[[i]]), theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)))
   print(plot)
  }
@@ -693,7 +685,20 @@ length(Seurat.list)==length(list.data)
 rm(list.data)
 gc()
 
-merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
+file.remove(normalizePath(file.path(path.to.read, filename)))
+#save
+filename=paste0(date,"_Seurat.list.postQC.rds")
+#print(paste0(path.to.read,filename))
+#print(normalizePath(file.path(path.to.read, filename)))
+saveRDS(Seurat.list, normalizePath(file.path(path.to.read, filename)))
+
+if(length(Seurat.list)>1) { 
+  merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
+  merged.Seurat[["RNA"]] <- JoinLayers(merged.Seurat[["RNA"]])
+} else {
+  merged.Seurat = Seurat.list[[1]]
+}
+
 cat("After QC\n")
 plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident"))
 plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident"))
@@ -718,19 +723,23 @@ merged.Seurat <- RunPCA(object = merged.Seurat, npcs = 50)
 #Find number of PCA to use explainig 95% variability (assuming npcs used is 100%)
 pca.percent.expl=find.significant.PCs(merged.Seurat, 0.95)
 
-all.pca = findPC::findPC(merged.Seurat@reductions$pca@stdev, number = length(merged.Seurat@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
-print(all.pca)
-all.pca = max(all.pca)
+## this findPC always underestimate PCAs to use
+#all.pca = findPC::findPC(merged.Seurat@reductions$pca@stdev, number = length(merged.Seurat@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
+#print(all.pca)
+#all.pca = max(all.pca)
 
-min.pca = max(pca.percent.expl, all.pca)
+#min.pca = max(pca.percent.expl, all.pca)
+min.pca = pca.percent.expl
 print(paste("PCA to be used", min.pca , sep=" "))
 
+#Pre-integration
 merged.Seurat <- RunUMAP(object = merged.Seurat, dims = 1:min.pca)
 merged.Seurat <- FindNeighbors(merged.Seurat, dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
 
+file.remove(normalizePath(file.path(path.to.read, filename)))
 #save
 filename=paste0(date,"_Seurat.merged.rds")
-filename
+#filename
 #print(paste0(path.to.read,filename))
-print(normalizePath(file.path(path.to.read, filename)))
+#print(normalizePath(file.path(path.to.read, filename)))
 saveRDS(merged.Seurat, normalizePath(file.path(path.to.read, filename)))

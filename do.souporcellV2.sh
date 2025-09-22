@@ -19,9 +19,7 @@ module load apps/apptainer
 # RUN:
 # sbatch thisfile.sh path n_samples
 #
-# $1 should be folder path containing:
-# 	possorted_genome_bam.bam
-# 	filtered_feature_bc_matrix folder
+# $1 should be folder path containing "outs" folder of cellranger. Possorted_genome_bam.bam is needed inside the outs folder
 # $2 should be n_samples (e.g. 2)
 
 #echo $1
@@ -34,4 +32,4 @@ gzip -dc $1/outs/filtered_feature_bc_matrix/barcodes.tsv.gz > $1/outs/filtered_f
 #when they will update to gzip > 1.6
 #gzip -dk $1/filtered_feature_bc_matrix/barcodes.tsv.gz
 
-apptainer exec /users/ds286q/souporcell/souporcell_latest.sif souporcell_pipeline.py -i $1/outs/possorted_genome_bam.bam -b $1/outs/filtered_feature_bc_matrix/barcodes.tsv.gz -f /users/ds286q/souporcell/10X_human_genome.fa -t 10 -o $1/souporcell_results -k $2
+apptainer exec --bind /mnt/autofs/data:/mnt/autofs/data /users/ds286q/souporcell/souporcell_latest.sif souporcell_pipeline.py -i $1/outs/possorted_genome_bam.bam -b $1/outs/filtered_feature_bc_matrix/barcodes.tsv.gz -f /users/ds286q/souporcell/10X_human_genome.fa -t 10 -o $1/souporcell_results -k $2
