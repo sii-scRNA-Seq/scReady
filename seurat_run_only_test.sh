@@ -39,8 +39,8 @@ conda activate pipeline
 
 if [ -z "$optional_csv_file" ]; then
     echo Rscript $seurat_script $folder
-    Rscript SeuratGeneration_mod_h5.R $folder
+    Rscript SeuratGeneration.R $folder
 else
     echo Rscript $seurat_script $folder $optional_csv_file
-    Rscript SeuratGeneration_mod_h5.R $folder $optional_csv_file
+    Rscript SeuratGeneration.R $folder $optional_csv_file
 fi
