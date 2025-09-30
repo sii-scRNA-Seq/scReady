@@ -1,0 +1,21 @@
+FROM bioconductor/bioconductor_docker:RELEASE_3_20
+
+ENV RENV_CONFIG_CACHE_ENABLED=false \
+    RENV_DOWNLOAD_FILE_METHOD=curl \
+    R_DEFAULT_INTERNET_TIMEOUT=1800
+
+WORKDIR /work
+
+RUN R -q -e "install.packages('renv', repos='https://cloud.r-project.org')"
+
+ENTRYPOINT ["bash","-lc","R -q -e \"\
+  renv::init(bioconductor = TRUE, bare = TRUE); \
+  install.packages('BiocManager', repos='https://cloud.r-project.org'); \
+  options(repos = BiocManager::repositories(), \
+          download.file.method='libcurl', timeout=1800); \
+  source('deps.R'); \
+  # normalize Bioc packages to CURRENT Bioc 3.20 versions (no @ pins) \
+  # renv::update(c('Rhtslib','Rsamtools','GenomicAlignments')); \
+  renv::clean(); \
+  renv::snapshot(prompt=FALSE) \
+\""]
