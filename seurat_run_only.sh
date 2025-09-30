@@ -22,7 +22,7 @@ module load apps/miniforge
 # RUN:
 # sbatch this_script.sh folder_path <optional_metadata_file.csv>
 #
-# SeuratGeneration.R needs to be in the same folder of this script 
+# R directory containing SeuratGeneration.R needs to be in the same folder of this script 
 #
 # folder_path need to be a folder containing cellranger mappings
 
@@ -39,8 +39,8 @@ conda activate pipeline
 
 if [ -z "$optional_csv_file" ]; then
     echo Rscript $seurat_script $folder
-    Rscript SeuratGeneration.R $folder
+    Rscript R/SeuratGeneration.R $folder
 else
     echo Rscript $seurat_script $folder $optional_csv_file
-    Rscript SeuratGeneration.R $folder $optional_csv_file
+    Rscript R/SeuratGeneration.R $folder $optional_csv_file
 fi
