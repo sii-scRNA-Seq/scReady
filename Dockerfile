@@ -24,6 +24,7 @@ RUN R -q -e "options(repos = BiocManager::repositories(), \
                     timeout = 1800); \
              renv::restore(lockfile='/opt/app/renv.lock', prompt=FALSE)"
 
+COPY R /opt/app/R
 COPY run.sh /usr/local/bin/run.sh
 RUN chmod +x /usr/local/bin/run.sh
 
@@ -35,4 +36,4 @@ WORKDIR /work
 #     RENV_CONFIG_CACHE_SYMLINKS=true \
 #     R_DEFAULT_INTERNET_TIMEOUT=300
 
-ENTRYPOINT ["run.sh"]
+ENTRYPOINT ["/usr/local/bin/run.sh"]
