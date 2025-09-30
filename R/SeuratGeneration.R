@@ -487,6 +487,7 @@ cat("Reading 10X folders with SoupX\n")
 
 #Read the 10X folder, with SoupX
 for (name in runs) {
+  stop("TEST ERROR")
   if (name %in% to.skip) {
   } else {
     cat(name)
