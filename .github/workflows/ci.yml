@@ -31,6 +31,7 @@ jobs:
             - name: Run smoke test
               run: |
                 docker run --rm \
+                  -e RENV_CONFIG_AUTOLOADER_ENABLED=FALSE -e RENV_PROJECT=NULL \
                   -v "$PWD":/work \
                   ${{ env.IMAGE }} \
                   /work/tests
