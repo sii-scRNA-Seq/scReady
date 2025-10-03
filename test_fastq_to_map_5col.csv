@@ -1,3 +1,0 @@
-fastqs,sample,count introns,generate bam,output folder
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N33-RNA,true,false,/users/ds286q/project0001/Dom/pipeline/mapped
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N36-RNA,true,true,/users/ds286q/project0001/Dom/pipeline/mapped
