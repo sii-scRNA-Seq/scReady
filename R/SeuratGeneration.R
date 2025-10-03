@@ -1,5 +1,12 @@
 #!/usr/bin/env Rscript
 
+# v 1.1
+# handle .h5 if cellranger folders are not available
+# config file
+# harmony integration
+# TO DO:
+# test cellhashR
+
 # v 1.0.5
 # bug AmbientRNA removal solved, added extra info on its results
 # add extra prints for clarity
@@ -13,29 +20,17 @@
 # miniforge env
 
 #############################
-###			  ###
-#			    #
-#   Functions definition    #
-#			    #
-###			  ###
+###			  
+#			  
+#   Functions definition 
+#			   
+###			  
 #############################
 
 SoupX.clean.from.CellRanger <- function(cellranger.folder) {
-  #Clean your scRNAseq data from ambient contamination
+  #Clean your scRNAseq data from ambient contamination using cellranger folders
   #Use:
   #clean.data = SoupX.clean(cellranger.folder="/my/cellranger/folder/")
-
-  # if (dir.exists(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))==FALSE){
-  #   stop("filtered_feature_bc_matrix folder didn't find")
-  # }
-  #
-  # if (dir.exists(paste(cellranger.folder,"raw_feature_bc_matrix",sep = "/"))==FALSE){
-  #   stop("raw_feature_bc_matrix folder didn't find")
-  # }
-  #
-  # if (dir.exists(paste(cellranger.folder,"analysis",sep = "/"))==FALSE){
-  #   stop("analysis folder didn't find")
-  # }
 
   #Load data
   sc = SoupX::load10X(cellranger.folder)
@@ -50,30 +45,32 @@ SoupX.clean.from.CellRanger <- function(cellranger.folder) {
   return(out)
 }
 
-SoupX.on.Seurat <- function(Seurat.object, cellranger.folder, min.cells = 5, min.features = 50) {
-  #Clean your scRNAseq data from ambient contamination
-  #Seurat object should be UNFILTERED (MT genes and doublets), and seurat_clusters should be present
+SoupX.from.h5 <- function(cellranger.folder) {
+  #Clean your scRNAseq data from ambient contamination using h5 files
   #Use:
-  #clean.data = SoupX.clean(Seurat.object, cellranger.folder="/my/cellranger/folder/")
+  #clean.data = SoupX.from.h5("/folder/containing/h5/files")
 
-  if (dir.exists(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))==FALSE){
+  if (!file.exists(paste(cellranger.folder, "filtered_feature_bc_matrix.h5", sep = "/"))) {
     stop("filtered_feature_bc_matrix folder didn't find")
   }
 
-  if (dir.exists(paste(cellranger.folder,"raw_feature_bc_matrix",sep = "/"))==FALSE){
+  if (!file.exists(paste(cellranger.folder, "raw_feature_bc_matrix.h5", sep = "/"))) {
     stop("raw_feature_bc_matrix folder didn't find")
   }
 
-  if (any(colnames(Seurat.object@meta.data) == "seurat_clusters")) {
-    print("seurat_clusters present...")
-  } else {
-    stop("seurat_clusters not present")
-  }
-
-  raw.matrix = Seurat::Read10X(paste(cellranger.folder,"raw_feature_bc_matrix",sep = "/"))
-  filt.matrix = Seurat::Read10X(paste(cellranger.folder,"filtered_feature_bc_matrix",sep = "/"))
+  raw.matrix = Seurat::Read10X_h5(paste(cellranger.folder,"raw_feature_bc_matrix.h5",sep = "/"))
+  filt.matrix = Seurat::Read10X_h5(paste(cellranger.folder,"filtered_feature_bc_matrix.h5",sep = "/"))
 
   sc  <- SoupX::SoupChannel(raw.matrix, filt.matrix)
+
+  Seurat.object <- CreateSeuratObject(filt.matrix)
+  Seurat.object <- NormalizeData(Seurat.object)
+  Seurat.object <- FindVariableFeatures(Seurat.object, selection.method = "vst", nfeatures = 750)
+  Seurat.object <- ScaleData(Seurat.object)
+  Seurat.object <- RunPCA(object = Seurat.object, npcs = 15)  
+  Seurat.object <- RunUMAP(object = Seurat.object, dims = 1:15)
+  Seurat.object <- FindNeighbors(Seurat.object, dims = 1:15) 
+  Seurat.object <- FindClusters(Seurat.object, resolution = 0.1)
 
   meta    <- Seurat.object@meta.data
   umap    <- Seurat.object@reductions$umap@cell.embeddings
@@ -87,11 +84,10 @@ SoupX.on.Seurat <- function(Seurat.object, cellranger.folder, min.cells = 5, min
   print("Genes with highest expression in background:")
   print(head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20))
 
-  adj.matrix = SoupX::adjustCounts(sc, roundToInt = T)
-
-  New.Seurat.object = Seurat::CreateSeuratObject(counts = adj.matrix, min.cells = 5, min.features = 50, meta.data = meta)
-  return(New.Seurat.object)
+  out = SoupX::adjustCounts(sc)
+  return(out)
 }
+
 
 make.add.meta <- function(Seurat.Object, metadata, return.only.table=FALSE, verbose=FALSE) {
   #From a metadata table and a Seurat.Object,
@@ -265,7 +261,7 @@ Mark.cells <- function(Seurat.object, nFeature.low = 250, nFeature.high = 5000, 
 
 find.significant.PCs <- function(Seurat.Object, variance=0.9, st.dev=0.05) {
   ##Find a min PCA significant (90% variance & st.dev<5%) to use
-  ##The Seurat.Object need "pca" slot filleds
+  ##The Seurat.Object need "pca" slot filled
   ##Example use:
   ## min.pca = find.significant.PCs(Seurat.Object)
 
@@ -289,19 +285,12 @@ find.significant.PCs <- function(Seurat.Object, variance=0.9, st.dev=0.05) {
 }
 
 Calc.Perc.Features <- function(Seurat.object, mt.pattern = "^MT-", hb.pattern = "^HB[^(P)]", ribo.pattern = ("RPS|RPL"), MALAT1.name="MALAT1", plot.name="") {
-  #alternative version: Mod for not plotting
+  #Known issue: works only with gene names, not gene IDs
   Seurat.object@misc$cell.recovered = ncol(Seurat.object)
   Seurat.object[["percent.mt"]] <- PercentageFeatureSet(Seurat.object, pattern = mt.pattern)
   Seurat.object[["percent.hb"]] <- PercentageFeatureSet(Seurat.object, pattern = hb.pattern)
   Seurat.object[["percent.ribo"]] <- PercentageFeatureSet(Seurat.object, pattern = ribo.pattern)
   Seurat.object[["percent.MALAT1"]] <- PercentageFeatureSet(Seurat.object, pattern = MALAT1.name)
-  #plot1 <- FeatureScatter(Seurat.object, feature1 = "nCount_RNA", feature2 = "percent.mt")
-  #plot2 <- FeatureScatter(Seurat.object, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  #plot3 <- FeatureScatter(Seurat.object, feature1 = "percent.MALAT1", feature2 = "percent.mt")
-  #plot4 <- VlnPlot(Seurat.object, features = c("percent.ribo", "percent.hb"), ncol = 2)
-  #plot <- ((plot1 + plot2) / (plot3 + plot4))
-  #plot = plot + plot_annotation(title = plot.name, theme = theme(plot.title = element_text(hjust = 0.5)))
-  #print(plot)
   return(Seurat.object)
 }
 
@@ -314,13 +303,6 @@ QC.n.mad <- function(Seurat.object, n.mad=4) {
   max.mito.thr <- median(Cell.QC.Stat$percent.mt) + n.mad*mad(Cell.QC.Stat$percent.mt)
   min.mito.thr <- median(Cell.QC.Stat$percent.mt) - n.mad*mad(Cell.QC.Stat$percent.mt)
 
-  #Plot
-  #p1 <- ggplot(Cell.QC.Stat, aes(x=nFeature_RNA, y=percent.mt)) +
-  #  geom_point() +
-  #  geom_hline(aes(yintercept = max.mito.thr), colour = "red", linetype = 2) +
-  #  geom_hline(aes(yintercept = min.mito.thr), colour = "red", linetype = 2) +
-  #  annotate(geom = "text", label = paste0(as.numeric(table(Cell.QC.Stat$percent.mt > max.mito.thr | Cell.QC.Stat$percent.mt < min.mito.thr)[2])," cells removed\n", as.numeric(table(Cell.QC.Stat$percent.mt > max.mito.thr | Cell.QC.Stat$percent.mt < min.mito.thr)[1])," cells remain"), x = 6000, y = 0.1)
-
   Cell.QC.Stat <- Cell.QC.Stat %>% dplyr::filter(percent.mt < max.mito.thr) %>% dplyr::filter(percent.mt > min.mito.thr)
 
   # Set low and hight thresholds on the number of detected genes
@@ -328,21 +310,6 @@ QC.n.mad <- function(Seurat.object, n.mad=4) {
   max.Genes.thr <- median(log10(Cell.QC.Stat$nFeature_RNA)) + n.mad*mad(log10(Cell.QC.Stat$nFeature_RNA))
   # Set hight threshold on the number of transcripts
   max.nUMI.thr <- median(log10(Cell.QC.Stat$nCount_RNA)) + n.mad*mad(log10(Cell.QC.Stat$nCount_RNA))
-
-  #p2 <- ggplot(Cell.QC.Stat, aes(x=log10(nCount_RNA), y=log10(nFeature_RNA))) +
-  #  geom_point() +
-  #  geom_smooth(method="lm") +
-  #  geom_hline(aes(yintercept = min.Genes.thr), colour = "green", linetype = 2) +
-  #  geom_hline(aes(yintercept = max.Genes.thr), colour = "green", linetype = 2) +
-  #  geom_vline(aes(xintercept = max.nUMI.thr), colour = "red", linetype = 2)
-
-  #p3 <- p1 / p2
-  #p1=ggExtra::ggMarginal(p1, type = "histogram", fill="lightgrey", bins=100)
-  #p2=ggExtra::ggMarginal(p2, type = "histogram", fill="lightgrey")
-  #print(typeof(p1))
-  #p3 <- p1 / p2
-  #p3 <- p3 + plot_annotation(title = names(Seurat.object), theme = theme(plot.title = element_text(hjust = 0.5)))
-  #print(p3)
 
   # Filter cells based on these thresholds
 
@@ -353,13 +320,11 @@ QC.n.mad <- function(Seurat.object, n.mad=4) {
   return(Seurat.object)
 }
 
-#Function to plot PCA of samples, return an avarageExpression Seurat object
 PCA.sample <- function(Seurat.Object, sample.name = "orig.ident", nfeatures = 2000, show.label=FALSE, legend=TRUE){
-        ##Thif function plot PCA of samples, return an avarageExpression Seurat object
-        ##Example use:
+  ##Thif function plot PCA of samples, return an avarageExpression Seurat object
+  ##Example use:
   ##My.new.object = PCA.sample(Seurat.Object, sample.name = "Patient", nfeatures = 1000)
 
-        ##Describe the code
   Idents(object = Seurat.Object) <- sample.name
   sample.object <- AverageExpression(object = Seurat.Object, return.seurat = TRUE)
   sample.object <- NormalizeData(sample.object)
@@ -378,7 +343,7 @@ PCA.sample <- function(Seurat.Object, sample.name = "orig.ident", nfeatures = 20
 
 Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE, barcode.suffix=NULL) {
   #v0.2: allow to change the souporcell.file barcode with a suffix
-  #Tris function creates will add your souporcell cluster.tsv file as metadata to a Seurat object 
+  #This function will add your souporcell cluster.tsv file as metadata to a Seurat object 
   #PBMC = Add.SNPs.HT(PBMC,"Mapped/clusters.tsv")
   
   SNPs = read.csv(souporcell.file, sep = "\t")
@@ -413,11 +378,11 @@ extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, meth
 	#Use:
 	#> my.HTO.table <- extract.HTO("/mypath/", c("HTO1","HTO6")))
   
-  #once Scott update the package version on todata3 I can uncomment this
-  #if (utils::packageVersion("cellhashR")<"1.0.4") {
-  #  stop("cellhashR version = or > 1.0.4 needed")
-  #}
-  print("Process Count Matrix...")
+	#once Scott update the package version on todata3 I can uncomment this
+	#if (utils::packageVersion("cellhashR")<"1.0.4") {
+	#  stop("cellhashR version = or > 1.0.4 needed")
+	#}
+	print("Process Count Matrix...")
 	barcodeData <- cellhashR::ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist, datatypeName = datatypeName)
 	print("Generate Cell Hashing Calls...")
 	calls.HTO <- cellhashR::GenerateCellHashingCalls(barcodeMatrix = barcodeData, methods = methods)
@@ -435,12 +400,26 @@ extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, meth
 
  
 #############################
-###		          ###
-#			    #
-#	   SCRIPT	    #
-#			    #
-###			  ###
+###		        
+#			    
+#	   SCRIPT	
+#			    
+###			
 #############################
+
+# config.R loading with validation
+required_vars <- c("min.cells", "min.features", "ambient.removal", "HTO.features", "souporcell_folder", "save.pre_QC", "n.mad", "var.features", "max.pca", "var.explained", "integration", "integration.method")
+
+#if (file.exists("/mnt/autofs/data/userdata/project0001/Dom/pipeline/config.R")) {
+if (file.exists(file.path("R", "scReady.config"))) {
+  source(file.path("R", "scReady.config"))
+  missing_vars <- setdiff(required_vars, ls())
+  if (length(missing_vars) > 0) {
+    stop("Missing variables in scReady.config: ", paste(missing_vars, collapse=", "))
+  }
+} else {
+  stop("scReady.config not found")
+}
 
 # Get command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -472,10 +451,10 @@ list.data.citeseq = c()
 list.snp = c()
 list.hto = c()
 list.ambient.result = c()
-to.skip = c() 
+to.skip = c()  # to remove
 
 #replace me for a test:
-#path.to.read = "/mnt/autofs/data/userdata/project0001/Dom/Apr25/test"
+#path.to.read = "/mnt/autofs/data/userdata/project0001/Dom/pipeline/test_dataset"
 path.to.read = sub("/$", "", path.to.read) 
 runs = list.dirs(path = path.to.read, full.names = FALSE, recursive = FALSE) 
 
@@ -496,9 +475,9 @@ for (name in runs) {
     path_name_outs = file.path(path_name, "outs")
 
     # Check for souporcell results
-    if (file.exists(file.path(path_name, "souporcell_results", "clusters.tsv"))) {
+    if (file.exists(file.path(path_name, souporcell_folder, "clusters.tsv"))) {
       print("Found SNPs souporcell folder")
-      list.snp[[name]] = file.path(path_name, "souporcell_results", "clusters.tsv")
+      list.snp[[name]] = file.path(path_name, souporcell_folder, "clusters.tsv")
     }
 	
     # Define paths for cellranger multi or count
@@ -509,26 +488,33 @@ for (name in runs) {
       # cellranger multi structure
       print("Found cellranger multi structure")
       path_name_filtered = multi_path_filtered
-    } else {
+	  data=Read10X(path_name_filtered)
+	  list.data[[name]]=try(SoupX.clean.from.CellRanger(path_name_outs))
+    } else if (dir.exists(file.path(path_name_outs, "filtered_feature_bc_matrix"))) {
       # cellranger count structure
       print("Found cellranger count structure")
       path_name_filtered = file.path(path_name_outs, "filtered_feature_bc_matrix")
       path_name_raw = file.path(path_name_outs, "raw_feature_bc_matrix")
-    }
+	  print("Removing ambient RNA")
+      list.data[[name]]=try(SoupX.clean.from.CellRanger(path_name_outs))
+	  data=Read10X(path_name_filtered)
+    } else if (file.exists(file.path(path_name_outs, "filtered_feature_bc_matrix.h5"))) {
+	  print("Found h5 files")
+	  path_name_filtered = file.path(path_name_outs,"filtered_feature_bc_matrix.h5")
+	  path_name_raw = file.path(path_name_outs, "raw_feature_bc_matrix")
+	  data=Read10X_h5(path_name_filtered)
+	  list.data[[name]]=try(SoupX.from.h5(path_name_outs))
+	} else {
+      stop("filtered_feature_bc_matrix and/or raw_feature_bc_matrix not found")
+	}
 
-    #print(path_name)
-    
-    #Read data, this might contain CITEseq data
-    print("Read10X data")
-    data=Read10X(path_name_filtered)
-	
     if (typeof(data)=="list") {
       print("Found CITEseq data")
       list.data.citeseq[[name]]=data$`Antibody Capture`
       #Uncomment when able to install cellhashR
       print("trying hashtag...")
       #HTO = try(extract.HTO(path_name_raw, barcodeWhitelist = colnames(data[["Gene Expression"]]), datatypeName = "Antibody Capture"))
-      HTO = try(extract.HTO(path_name_filtered, barcodeWhitelist = c("HTO1","HTO2","HTO3","HTO4","HTO5","HTO6"), datatypeName = "Antibody Capture"))  
+      HTO = try(extract.HTO(path_name_filtered, barcodeWhitelist = HTO.features, datatypeName = "Antibody Capture"))  
     if (inherits(HTO, "try-error")) { 
 	  print("HTO failed")
       } else {
@@ -539,8 +525,6 @@ for (name in runs) {
     }
 
     #If SoupX return error for low diversity (1 celltype, or low n of cells) get the classic load
-    print("Removing ambient RNA")
-    list.data[[name]]=try(SoupX.clean.from.CellRanger(path_name_outs))
     print("Done.")
     if (inherits(list.data[[name]], "try-error")) {
 	  list.ambient.result[[name]] = "Ambient removal failed"
@@ -603,21 +587,13 @@ for (i in 1:length(list.data)) {
 }
 length(Seurat.list)==length(list.data)
 
-#for (name in runs) {
-#  if (name %in% to.skip) {
-#  } else {
-#    cat(name)
-#    cat("\n")
-#    path_name=paste(path.to.read, name, sep="/")
-#    path_name=paste0(path_name,"/outs")
-#    #print(path_name)
-#    #list.data[[name]]=Read10X(path_name)
-
 #save
-filename=paste0(date,"_Seurat.list.preQC.rds")
-#print(paste0(path.to.read,filename))
-#print(normalizePath(file.path(path.to.read, filename)))
-saveRDS(Seurat.list, normalizePath(file.path(path.to.read, filename)))
+if (save.pre_QC) {
+	filename=paste0(date,"_Seurat.list.preQC.rds")
+	#print(paste0(path.to.read,filename))
+	#print(normalizePath(file.path(path.to.read, filename)))
+	saveRDS(Seurat.list, normalizePath(file.path(path.to.read, filename)))
+}
 
 #saveRDS(Seurat.list, "/mnt/data/project0001/Dom/pipeline/TEST_Seurat_list.rds")
 
@@ -640,40 +616,21 @@ gc()
 # QC, Norm, Scale, RunPCA
 for (i in 1:length(Seurat.list)) {
   #print(i)
-  Seurat.list[[i]] = QC.n.mad(Seurat.list[[i]], n.mad = 5)
-  
-  #TO DO: save plots?
-  #plot1 <- FeatureScatter(GSK1.list[[i]], feature1 = "nCount_RNA", feature2 = "percent.mt")
-  #plot2 <- FeatureScatter(GSK1.list[[i]], feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  #plot3 <- FeatureScatter(GSK1.list[[i]], feature1 = "percent.MALAT1", feature2 = "percent.mt")
-  #plot4 <- VlnPlot(GSK1.list[[i]], features = c("percent.ribo", "percent.hb"), ncol = 2)
-  #plot <- ((plot1 + plot2) / (plot3 + plot4))
-  #plot = plot + plot_annotation(title = names(GSK1.list[[i]]), theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)))
-  #print(plot)
+  Seurat.list[[i]] = QC.n.mad(Seurat.list[[i]], n.mad = n.mad)
 
   Seurat.list[[i]] <- NormalizeData(Seurat.list[[i]])
-  Seurat.list[[i]] <- FindVariableFeatures(Seurat.list[[i]], selection.method = "vst", nfeatures = 2000)
+  Seurat.list[[i]] <- FindVariableFeatures(Seurat.list[[i]], selection.method = "vst", nfeatures = var.features)
   Seurat.list[[i]] <- ScaleData(Seurat.list[[i]])
-  Seurat.list[[i]] <- RunPCA(object = Seurat.list[[i]], npcs = 50)
+  Seurat.list[[i]] <- RunPCA(object = Seurat.list[[i]], npcs = max.pca)
 
   #Find number of PCA to use explainig 95% variability (assuming npcs used is 100%)
-  pca.percent.expl=find.significant.PCs(Seurat.list[[i]], 0.95)
+  pca.percent.expl=find.significant.PCs(Seurat.list[[i]], var.explained)
  
-  ## this findPC function always underestimate the PCA to use, so I will remove it
-  #all.pca = findPC::findPC(Seurat.list[[i]]@reductions$pca@stdev, number = length(Seurat.list[[i]]@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
-  #print(all.pca)
-  #all.pca = max(all.pca)
-  
-  #min.pca = max(pca.percent.expl, all.pca)
   min.pca = pca.percent.expl
   print(paste("PCA to be used", min.pca , sep=" "))
   
   Seurat.list[[i]] <- RunUMAP(object = Seurat.list[[i]], dims = 1:min.pca)
   Seurat.list[[i]] <- FindNeighbors(Seurat.list[[i]], dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
-
-  #plot = DimPlot(Seurat.list[[i]])
-  #plot = plot + plot_annotation(title = names(Seurat.list[i]), theme = ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)))
-  #print(plot)
 
   ##Find doublets
   plot <- DimPlot(Seurat.list[[i]], group.by = "scDblFinder_DropletType")
@@ -684,13 +641,6 @@ for (i in 1:length(Seurat.list)) {
 length(Seurat.list)==length(list.data)
 rm(list.data)
 gc()
-
-file.remove(normalizePath(file.path(path.to.read, filename)))
-#save
-filename=paste0(date,"_Seurat.list.postQC.rds")
-#print(paste0(path.to.read,filename))
-#print(normalizePath(file.path(path.to.read, filename)))
-saveRDS(Seurat.list, normalizePath(file.path(path.to.read, filename)))
 
 if(length(Seurat.list)>1) { 
   merged.Seurat = merge(Seurat.list[[1]], y=Seurat.list[2:length(Seurat.list)])
@@ -709,26 +659,18 @@ plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident"
 #rm(merged.Seurat)
 gc()
 
-dev.off()
-
 if (!is.na(optional_csv_file)) {
 	Idents(merged.Seurat) <- "orig.ident"
 	merged.Seurat <- make.add.meta(merged.Seurat, optional_data)
 }
 
-merged.Seurat <- FindVariableFeatures(merged.Seurat, selection.method = "vst", nfeatures = 2000)
+merged.Seurat <- FindVariableFeatures(merged.Seurat, selection.method = "vst", nfeatures = var.features)
 merged.Seurat <- ScaleData(merged.Seurat)
-merged.Seurat <- RunPCA(object = merged.Seurat, npcs = 50)
+merged.Seurat <- RunPCA(object = merged.Seurat, npcs = max.pca)
 
 #Find number of PCA to use explainig 95% variability (assuming npcs used is 100%)
-pca.percent.expl=find.significant.PCs(merged.Seurat, 0.95)
+pca.percent.expl=find.significant.PCs(merged.Seurat, var.explained)
 
-## this findPC always underestimate PCAs to use
-#all.pca = findPC::findPC(merged.Seurat@reductions$pca@stdev, number = length(merged.Seurat@reductions$pca@stdev),  method = "all", aggregate = NULL, figure = FALSE)
-#print(all.pca)
-#all.pca = max(all.pca)
-
-#min.pca = max(pca.percent.expl, all.pca)
 min.pca = pca.percent.expl
 print(paste("PCA to be used", min.pca , sep=" "))
 
@@ -736,10 +678,20 @@ print(paste("PCA to be used", min.pca , sep=" "))
 merged.Seurat <- RunUMAP(object = merged.Seurat, dims = 1:min.pca)
 merged.Seurat <- FindNeighbors(merged.Seurat, dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
 
-file.remove(normalizePath(file.path(path.to.read, filename)))
 #save
 filename=paste0(date,"_Seurat.merged.rds")
-#filename
-#print(paste0(path.to.read,filename))
-#print(normalizePath(file.path(path.to.read, filename)))
 saveRDS(merged.Seurat, normalizePath(file.path(path.to.read, filename)))
+
+if (integration) {
+	if(integration.method == "harmony") {
+		merged.Seurat <- harmony::RunHarmony(merged.Seurat, group.by.vars = "orig.ident", plot_convergence = TRUE)
+		merged.Seurat <- RunUMAP(merged.Seurat, reduction = "harmony", dims=1:min.pca)
+		merged.Seurat <- FindNeighbors(merged.Seurat, reduction = "harmony", dims=1:min.pca) %>% FindClusters(resolution = 0.1)
+	} else if(integration.method == "seurat") {
+		#TO DO
+	}
+	filename=paste0(date,"_Seurat.integrated.rds")
+	saveRDS(merged.Seurat, normalizePath(file.path(path.to.read, filename)))
+}
+
+dev.off()
