@@ -149,41 +149,41 @@ SoupX.from.h5 <- function(cellranger.folder) {
 #' # Return only the metadata table
 #' metadata.table <- make.add.meta(Seurat.Object, metadata, return.only.table=TRUE)
 ################################################################################
-make.add.meta <- function(Seurat.Object, metadata, return.only.table=TRUE, verbose=FALSE) {
-  # Display metadata preview if verbose mode is enabled
+make.add.meta <- function(Seurat.Object, metadata.tab, return.only.table=FALSE, verbose=FALSE) {
+  # Display metadata.tab preview if verbose mode is enabled
   if (verbose) {
-    print(head(metadata))
+    print(head(metadata.tab))
   }
   
-  if (is.null(metadata) || nrow(metadata) == 0) {
+  if (is.null(metadata.tab) || nrow(metadata.tab) == 0) {
 	stop("Metadata is empty or NULL")
   }
 
-  # Case 1: Single row metadata - apply to all cells in the Seurat object
-  if (nrow(metadata)==1) {
+  # Case 1: Single row metadata.tab - apply to all cells in the Seurat object
+  if (nrow(metadata.tab)==1) {
     if (verbose) {
-      print("nrow(metadata)==1")
+      print("nrow(metadata.tab)==1")
     }
 	
 	# Create empty dataframe with cell barcodes as row names
     df.cells <- data.frame(row.names = colnames(Seurat.Object))
 	
-	# Add each metadata column to the dataframe
-    for (name in colnames(metadata)) {
+	# Add each metadata.tab column to the dataframe
+    for (name in colnames(metadata.tab)) {
       #print(name)
-      df.cells[name]=metadata[name]
+      df.cells[name]=metadata.tab[name]
     }
 	
-  # Case 2: Single column metadata - treat as a list matching Seurat object identities
-  } else if (ncol(metadata)==1) {
+  # Case 2: Single column metadata.tab - treat as a list matching Seurat object identities
+  } else if (ncol(metadata.tab)==1) {
     if (verbose){
-      print(colnames(metadata))
-      print(names(metadata))
+      print(colnames(metadata.tab))
+      print(names(metadata.tab))
     }
 
-    # Validate that Seurat object identities match metadata rows
-    if (length(setdiff(Idents(Seurat.Object), rownames(metadata)))!=0 || length(setdiff(rownames(metadata),Idents(Seurat.Object)))!=0) {
-      stop("Seurat object Idents and metadata rows are not matching.")
+    # Validate that Seurat object identities match metadata.tab rows
+    if (length(setdiff(Idents(Seurat.Object), rownames(metadata.tab)))!=0 || length(setdiff(rownames(metadata.tab),Idents(Seurat.Object)))!=0) {
+      stop("Seurat object Idents and metadata.tab rows are not matching.")
     }
 
 	# Initialize empty dataframe
@@ -196,25 +196,25 @@ make.add.meta <- function(Seurat.Object, metadata, return.only.table=TRUE, verbo
 	  # Create dataframe for cells with current identity
       new_df <- data.frame(row.names = WhichCells(Seurat.Object, idents = name))
 
-	  # Get corresponding metadata row
-      meta_row=metadata[rownames(metadata) == name,]
+	  # Get corresponding metadata.tab row
+      meta_row=metadata.tab[rownames(metadata.tab) == name,]
 	  
-	  # Add metadata to the dataframe
-      new_df[colnames(metadata)]=meta_row
+	  # Add metadata.tab to the dataframe
+      new_df[colnames(metadata.tab)]=meta_row
 	  
 	  # Combine with main dataframe
       df.cells=dplyr::bind_rows(df.cells, new_df)
       }
   } 
-  # Case 3: Multi-row/column metadata - match to Seurat object identities
+  # Case 3: Multi-row/column metadata.tab - match to Seurat object identities
   else {
     if (verbose) {
-      message("Multi-row/column metadata detected")
+      message("Multi-row/column metadata.tab detected")
     }
     
-	# Validate that Seurat object identities match metadata rows
-    if (length(setdiff(Idents(Seurat.Object), rownames(metadata)))!=0 || length(setdiff(rownames(metadata),Idents(Seurat.Object)))!=0) {
-      stop("Seurat object Idents and metadata rows are not matching.")
+	# Validate that Seurat object identities match metadata.tab rows
+    if (length(setdiff(Idents(Seurat.Object), rownames(metadata.tab)))!=0 || length(setdiff(rownames(metadata.tab),Idents(Seurat.Object)))!=0) {
+      stop("Seurat object Idents and metadata.tab rows are not matching.")
     }
 
 	# Initialize empty dataframe
@@ -227,8 +227,8 @@ make.add.meta <- function(Seurat.Object, metadata, return.only.table=TRUE, verbo
 	  # Create dataframe for cells with current identity
       new_df <- data.frame(row.names = WhichCells(Seurat.Object, idents = name))
 
-	  # Get corresponding metadata row
-      meta_row=metadata[rownames(metadata) == name,]
+	  # Get corresponding metadata.tab row
+      meta_row=metadata.tab[rownames(metadata.tab) == name,]
       if (verbose) {
         print("meta_row:")
         print(meta_row)
@@ -236,7 +236,7 @@ make.add.meta <- function(Seurat.Object, metadata, return.only.table=TRUE, verbo
         print(ncol(meta_row))
       }
 	  
-	  # Check for potential issues with metadata
+	  # Check for potential issues with metadata.tab
       if (is.null(colnames(meta_row))) {
         stop("Contact Dom")
       }
@@ -244,9 +244,9 @@ make.add.meta <- function(Seurat.Object, metadata, return.only.table=TRUE, verbo
         stop("There is only 1 column...contact dom, need to be fixed")
       }
 	  
-	  # Add each metadata column to the dataframe
+	  # Add each metadata.tab column to the dataframe
       for (col_name in colnames(meta_row)){
-        #add the specific metadata you need
+        #add the specific metadata.tab you need
         if (verbose) {
           print("col_name is:")
           print(col_name)
@@ -259,7 +259,7 @@ make.add.meta <- function(Seurat.Object, metadata, return.only.table=TRUE, verbo
     }
   }
 
-  # Return either just the metadata table or the Seurat object with added metadata
+  # Return either just the metadata.tab table or the Seurat object with added metadata.tab
   if (return.only.table==TRUE) {
     return(df.cells)
   } else {
@@ -390,33 +390,73 @@ Calc.Perc.Features <- function(Seurat.object, mt.pattern = "^MT-", hb.pattern = 
 #' Seurat.object <- QC.n.mad(Seurat.object, n.mad = 4)
 ################################################################################
 QC.n.mad <- function(Seurat.object, n.mad=4) {
-  # Get cell QC statistics
   Cell.QC.Stat <- Seurat.object@meta.data
   message("Starting with ", nrow(Cell.QC.Stat), " cells")
-  
+
   # Set MAD-based thresholds for mitochondrial content
   max.mito.thr <- median(Cell.QC.Stat$percent.mt) + n.mad*mad(Cell.QC.Stat$percent.mt)
   min.mito.thr <- median(Cell.QC.Stat$percent.mt) - n.mad*mad(Cell.QC.Stat$percent.mt)
 
-  # Filter cells based on mitochondrial content
-  Cell.QC.Stat <- Cell.QC.Stat %>% dplyr::filter(percent.mt < max.mito.thr) %>% dplyr::filter(percent.mt > min.mito.thr)
+  # Plot mitochondrial content vs. feature count
+  p1 <- ggplot(Cell.QC.Stat, aes(x=nFeature_RNA, y=percent.mt)) +
+    geom_point() +
+    geom_hline(aes(yintercept = max.mito.thr), colour = "red", linetype = 2) +
+    geom_hline(aes(yintercept = min.mito.thr), colour = "red", linetype = 2) +
+    annotate(geom = "text",
+             label = paste0(as.numeric(table(Cell.QC.Stat$percent.mt > max.mito.thr | Cell.QC.Stat$percent.mt < min.mito.thr)[2]),
+                           " cells removed\n",
+                           as.numeric(table(Cell.QC.Stat$percent.mt > max.mito.thr | Cell.QC.Stat$percent.mt < min.mito.thr)[1]),
+                           " cells remain"),
+             x = 6000, y = 0.1)
 
-  # Set MAD-based thresholds for gene counts (log10 transformed)
-  log10.nFeature = log10(Cell.QC.Stat$nFeature_RNA)
+  # Filter cells based on mitochondrial content
+  Cell.QC.Stat <- Cell.QC.Stat %>%
+    dplyr::filter(percent.mt < max.mito.thr) %>%
+    dplyr::filter(percent.mt > min.mito.thr)
+
+  message("After mitochondrial filtering: ", nrow(Cell.QC.Stat), " cells remain")
+
+  # Set thresholds for gene counts and UMI counts using the filtered data
+  log10.nFeature <- log10(Cell.QC.Stat$nFeature_RNA)
   min.Genes.thr <- median(log10.nFeature) - n.mad*mad(log10.nFeature)
   max.Genes.thr <- median(log10.nFeature) + n.mad*mad(log10.nFeature)
-  
-  # Set MAD-based threshold for UMI counts (log10 transformed)
-  log10.nCount = log10(Cell.QC.Stat$nCount)
+
+  log10.nCount <- log10(Cell.QC.Stat$nCount_RNA)
   max.nUMI.thr <- median(log10.nCount) + n.mad*mad(log10.nCount)
 
-  # Apply all filters
-  Cell.QC.Stat <- Cell.QC.Stat %>% 
-	dplyr::filter(log10.nFeature > min.Genes.thr) %>% 
-	dplyr::filter(log10.nFeature < max.Genes.thr) %>% 
-	dplyr::filter(log10.nCount < max.nUMI.thr)
+  # Plot gene counts vs. UMI counts
+  p2 <- ggplot(Cell.QC.Stat, aes(x=log10(nCount_RNA), y=log10(nFeature_RNA))) +
+    geom_point() +
+    geom_smooth(method="lm") +
+    geom_hline(aes(yintercept = min.Genes.thr), colour = "green", linetype = 2) +
+    geom_hline(aes(yintercept = max.Genes.thr), colour = "green", linetype = 2) +
+    geom_vline(aes(xintercept = max.nUMI.thr), colour = "red", linetype = 2)
 
-  message("After filtering: ", nrow(Cell.QC.Stat), " cells remain")
+  # Print individual plots
+  print(p1)
+  print(p2)
+
+  # Combine plots using patchwork::wrap_plots
+  combined_plot <- patchwork::wrap_plots(
+    plotlist = list(p1, p2),
+    ncol = 1,
+    guides = "collect"
+  ) +
+    patchwork::plot_annotation(
+      title = names(Seurat.object),
+      theme = theme(plot.title = element_text(hjust = 0.5))
+    )
+
+  # Print the combined plot
+  print(combined_plot)
+
+  # Filter cells based on gene count and UMI thresholds
+  Cell.QC.Stat <- Cell.QC.Stat %>%
+    dplyr::filter(log10(nFeature_RNA) > min.Genes.thr) %>%
+    dplyr::filter(log10(nFeature_RNA) < max.Genes.thr) %>%
+    dplyr::filter(log10(nCount_RNA) < max.nUMI.thr)
+
+  message("After all filtering: ", nrow(Cell.QC.Stat), " cells remain")
   message("----------------------------------------")
 
   # Subset Seurat object to keep only passing cells
@@ -572,6 +612,11 @@ Add.SNPs.HT <- function(Seurat.Object, souporcell.file, verbose=FALSE, barcode.s
 #' HTO.table <- extract.HTO("/path/to/HTO/data/", c("HTO1","HTO6"))
 ################################################################################
 extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, methods = c("bff_cluster", "multiseq","dropletutils"), datatypeName = NULL) {
+
+	if (utils::packageVersion("cellhashR")<"1.0.4") {
+	  stop("cellhashR version = or > 1.0.4 needed")
+	}
+	
 	message("Processing HTO count matrix...")
     # Process the HTO count matrix
 	barcodeData <- cellhashR::ProcessCountMatrix(rawCountData = path, minCountPerCell = minCountPerCell, barcodeWhitelist = barcodeWhitelist, datatypeName = datatypeName)
@@ -697,9 +742,6 @@ if (!is.na(optional_csv_file)) {
   message("Optional CSV metadata file loaded: ", optional_csv_file)
   message("Metadata contains ", nrow(optional_data), " rows and ",
           ncol(optional_data), " columns.")
-
-  # The metadata can now be used in subsequent analysis steps
-  # For example: adding sample annotations to Seurat objects
 }
 
 ################################################################################
@@ -720,6 +762,11 @@ library(dplyr)
 
 # Load SoupX for ambient RNA removal
 library(SoupX)
+
+# Load libraries for plots
+library(ggplot2) 
+library(ggExtra)
+library(patchwork)
 
 # Note: Additional packages are loaded as needed in specific functions
 # to minimize memory usage and startup time.
@@ -1041,6 +1088,7 @@ if(length(Seurat.list)>1) {
 
 # Generate post-QC visualization plots
 message("Generating post-QC visualization plots...")
+Idents(merged.Seurat) <- "orig.ident"
 plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident"),
      main = "Post-QC: UMI Counts by Sample")
 plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident"),
@@ -1072,8 +1120,28 @@ gc()
 
 # Add metadata from optional CSV file if provided
 if (!is.na(optional_csv_file)) {
-	Idents(merged.Seurat) <- "orig.ident"
-	merged.Seurat <- make.add.meta(merged.Seurat, optional_data)
+    Idents(merged.Seurat) <- "orig.ident"
+
+    # Get the unique sample IDs from the Seurat object
+    sample_ids <- unique(merged.Seurat$orig.ident)
+
+    # Check if the sample IDs exist in the metadata
+    matching_samples <- intersect(sample_ids, rownames(optional_data))
+
+    if (length(matching_samples) > 0) {
+        # Subset to keep only matching samples and ensure we get a data frame
+        metadata.tab <- optional_data[matching_samples, , drop = FALSE]
+
+        # Check if metadata.tab is valid
+        if (!is.null(metadata.tab) && nrow(metadata.tab) > 0) {
+            # Add metadata to the Seurat object
+            merged.Seurat <- make.add.meta(merged.Seurat, metadata.tab)
+        } else {
+            warning("Metadata subset is empty or invalid")
+        }
+    } else {
+        warning("No matching samples found between Seurat object and metadata")
+    }
 }
 
 # Find variable features in the merged dataset
