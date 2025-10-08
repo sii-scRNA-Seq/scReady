@@ -88,7 +88,6 @@ SoupX.from.h5 <- function(cellranger.folder) {
   return(out)
 }
 
-
 make.add.meta <- function(Seurat.Object, metadata.tab, return.only.table=FALSE, verbose=FALSE) {
   #From a metadata table and a Seurat.Object,
   #it creates a proper metadata table with cell barcodeID and add it to Seurat.object
@@ -412,8 +411,8 @@ required_vars <- c("min.cells", "min.features", "ambient.removal", "HTO.features
 
 # Try to find the configuration file in different locations
 config_paths <- c(
-  file.path("config", "scReady.config"),  # Look in R subdirectory
-  "scReady.config"                  # Look in current directory
+  file.path("..", "config", "scReady.config"),  # Go up one level, then into config subdirectory
+  file.path("config", "scReady.config")         # Look in current directory's config subdirectory
 )
 
 config_found <- FALSE
@@ -666,7 +665,7 @@ if(length(Seurat.list)>1) {
 }
 
 cat("After QC\n")
-Ident(merged.Seurat)<-"orig.ident"
+Idents(merged.Seurat)<-"orig.ident"
 plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident"))
 plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident"))
 plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident"))
