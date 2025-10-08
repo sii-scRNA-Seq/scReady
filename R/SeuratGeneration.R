@@ -89,35 +89,35 @@ SoupX.from.h5 <- function(cellranger.folder) {
 }
 
 
-make.add.meta <- function(Seurat.Object, metadata, return.only.table=FALSE, verbose=FALSE) {
+make.add.meta <- function(Seurat.Object, metadata.tab, return.only.table=FALSE, verbose=FALSE) {
   #From a metadata table and a Seurat.Object,
   #it creates a proper metadata table with cell barcodeID and add it to Seurat.object
   # Use:
   # Seurat.object = make.add.meta(Seurat.Object, metadata)
 
   if (verbose) {
-    print(head(metadata))
+    print(head(metadata.tab))
   }
 
   #if there is only 1 row, add it to the whole Seurat.Object
-  if (nrow(metadata)==1) {
+  if (nrow(metadata.tab)==1) {
     if (verbose) {
-      print("nrow(metadata)==1")
+      print("nrow(metadata.tab)==1")
     }
     df.cells <- data.frame(row.names = colnames(Seurat.Object))
-    for (name in colnames(metadata)) {
+    for (name in colnames(metadata.tab)) {
       #print(name)
-      df.cells[name]=metadata[name]
+      df.cells[name]=metadata.tab[name]
     }
   #if there is only 1 column it's a list
-  } else if (ncol(metadata)==1) {
+  } else if (ncol(metadata.tab)==1) {
     if (verbose){
-      print(colnames(metadata))
-      print(names(metadata))
+      print(colnames(metadata.tab))
+      print(names(metadata.tab))
     }
 
     #check if length of idents is different of lenght metadata
-    if (length(setdiff(Idents(Seurat.Object), rownames(metadata)))!=0 || length(setdiff(rownames(metadata),Idents(Seurat.Object)))!=0) {
+    if (length(setdiff(Idents(Seurat.Object), rownames(metadata.tab)))!=0 || length(setdiff(rownames(metadata.tab),Idents(Seurat.Object)))!=0) {
       stop("Seurat object Idents and metadata rows are not matching.")
     }
 
@@ -135,19 +135,19 @@ make.add.meta <- function(Seurat.Object, metadata, return.only.table=FALSE, verb
       new_df <- data.frame(row.names = WhichCells(Seurat.Object, idents = name))
 
       #Select the row of interest from metadata, corresponding to the metadata to add to those cells
-      meta_row=metadata[rownames(metadata) == name,]
-      new_df[colnames(metadata)]=meta_row
+      meta_row=metadata.tab[rownames(metadata.tab) == name,]
+      new_df[colnames(metadata.tab)]=meta_row
       df.cells=dplyr::bind_rows(df.cells, new_df)
       }
       #merge in a big df
   #if else is a dataframe
   } else {
     if (verbose) {
-      print("nrow(metadata)!=1")
+      print("nrow(metadata.tab)!=1")
     }
     #check if length of idents is different of lenght metadata
-    if (length(setdiff(Idents(Seurat.Object), rownames(metadata)))!=0 || length(setdiff(rownames(metadata),Idents(Seurat.Object)))!=0) {
-      stop("Seurat object Idents and metadata rows are not matching.")
+    if (length(setdiff(Idents(Seurat.Object), rownames(metadata.tab)))!=0 || length(setdiff(rownames(metadata.tab),Idents(Seurat.Object)))!=0) {
+      stop("Seurat object Idents and metadata.tab rows are not matching.")
     }
 
     df.cells <- data.frame()
@@ -164,7 +164,7 @@ make.add.meta <- function(Seurat.Object, metadata, return.only.table=FALSE, verb
       new_df <- data.frame(row.names = WhichCells(Seurat.Object, idents = name))
 
       #Select the row of interest from metadata, corresponding to the metadata to add to those cells
-      meta_row=metadata[rownames(metadata) == name,]
+      meta_row=metadata.tab[rownames(metadata.tab) == name,]
       if (verbose) {
         #print(metadata)
         #print(rownames(metadata))
@@ -410,15 +410,31 @@ extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, meth
 # config.R loading with validation
 required_vars <- c("min.cells", "min.features", "ambient.removal", "HTO.features", "souporcell_folder", "save.pre_QC", "n.mad", "var.features", "max.pca", "var.explained", "integration", "integration.method")
 
-#if (file.exists("/mnt/autofs/data/userdata/project0001/Dom/pipeline/config.R")) {
-if (file.exists(file.path("R", "scReady.config"))) {
-  source(file.path("R", "scReady.config"))
-  missing_vars <- setdiff(required_vars, ls())
-  if (length(missing_vars) > 0) {
-    stop("Missing variables in scReady.config: ", paste(missing_vars, collapse=", "))
+# Try to find the configuration file in different locations
+config_paths <- c(
+  file.path("config", "scReady.config"),  # Look in R subdirectory
+  "scReady.config"                  # Look in current directory
+)
+
+config_found <- FALSE
+for (path in config_paths) {
+  if (file.exists(path)) {
+    source(path)
+    config_found <- TRUE
+    break
   }
-} else {
-  stop("scReady.config not found")
+}
+
+if (!config_found) {
+  stop("scReady.config not found in either the current directory or config/ subdirectory")
+}
+
+message("Configuration loaded successfully from: ", path)
+
+# Check for missing required variables
+missing_vars <- setdiff(required_vars, ls())
+if (length(missing_vars) > 0) {
+  stop("Missing variables in scReady.config: ", paste(missing_vars, collapse = ", "))
 }
 
 # Get command-line arguments
@@ -451,7 +467,7 @@ list.data.citeseq = c()
 list.snp = c()
 list.hto = c()
 list.ambient.result = c()
-to.skip = c()  # to remove
+to.skip = c()  # to add to the config file?
 
 #replace me for a test:
 #path.to.read = "/mnt/autofs/data/userdata/project0001/Dom/pipeline/test_dataset"
@@ -650,6 +666,7 @@ if(length(Seurat.list)>1) {
 }
 
 cat("After QC\n")
+Ident(merged.Seurat)<-"orig.ident"
 plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident"))
 plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident"))
 plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident"))
@@ -660,9 +677,30 @@ plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident"
 gc()
 
 if (!is.na(optional_csv_file)) {
-	Idents(merged.Seurat) <- "orig.ident"
-	merged.Seurat <- make.add.meta(merged.Seurat, optional_data)
+    Idents(merged.Seurat) <- "orig.ident"
+
+    # Get the unique sample IDs from the Seurat object
+    sample_ids <- unique(merged.Seurat$orig.ident)
+
+    # Check if the sample IDs exist in the metadata
+    matching_samples <- intersect(sample_ids, rownames(optional_data))
+
+    if (length(matching_samples) > 0) {
+        # Subset to keep only matching samples and ensure we get a data frame
+        metadata.tab <- optional_data[matching_samples, , drop = FALSE]
+
+        # Check if metadata.tab is valid
+        if (!is.null(metadata.tab) && nrow(metadata.tab) > 0) {
+            # Add metadata to the Seurat object
+            merged.Seurat <- make.add.meta(merged.Seurat, metadata.tab)
+        } else {
+            warning("Metadata subset is empty or invalid")
+        }
+    } else {
+        warning("No matching samples found between Seurat object and metadata")
+    }
 }
+
 
 merged.Seurat <- FindVariableFeatures(merged.Seurat, selection.method = "vst", nfeatures = var.features)
 merged.Seurat <- ScaleData(merged.Seurat)
