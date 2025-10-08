@@ -10,5 +10,6 @@ renv::install(c(
   "bioc::scDblFinder",
   # "bioc::Rhtslib" tarball is corrupted, using GitHub source instead.
   "git::https://git.bioconductor.org/packages/Rhtslib@RELEASE_3_20",
-  "BimberLab/cellhashR"
+  "BimberLab/cellhashR",
+  "harmony"
 ))

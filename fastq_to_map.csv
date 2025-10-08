@@ -1,8 +1,0 @@
-fastqs,sample,count introns,generate bam,output folder
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N31-RNA,true,false,/users/ds286q/project0001/Dom/pipeline/mapped
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N32-RNA,true,false,/users/ds286q/project0001/Dom/pipeline/mapped
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N33-RNA,true,false,/users/ds286q/project0001/Dom/pipeline/mapped
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N36-RNA,true,true,/users/ds286q/project0001/Dom/pipeline/mapped
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N41-RNA,true,true,/users/ds286q/project0001/Dom/pipeline/mapped
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N52-RNA,true,true,/users/ds286q/project0001/Dom/pipeline/mapped
-/users/ds286q/project0001/Dom/pipeline/fastqs/3088_VH00574_255_Mariola_20240614/fastq,N53-RNA,true,false,/users/ds286q/project0001/Dom/pipeline/mapped

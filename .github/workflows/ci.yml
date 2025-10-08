@@ -6,7 +6,7 @@ on:
     branches: [ main ]
 
 env:
-    IMAGE: ghcr.io/sii-scrna-seq/scrnaseq-standardised-pipeline:latest
+    IMAGE: ghcr.io/sii-scrna-seq/scready:latest
 
 jobs:
     smoke:

@@ -25,6 +25,8 @@ RUN R -q -e "options(repos = BiocManager::repositories(), \
              renv::restore(lockfile='/opt/app/renv.lock', prompt=FALSE)"
 
 COPY R /opt/app/R
+# Copy default config to container
+COPY config/scReady.config /opt/app/config/scReady.config
 COPY run.sh /usr/local/bin/run.sh
 RUN chmod +x /usr/local/bin/run.sh
 
