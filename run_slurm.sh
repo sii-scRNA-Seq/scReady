@@ -23,7 +23,7 @@ module load apps/apptainer
 #
 # folder_path need to be a folder containing cellranger mappings
 
-IMAGE="docker://ghcr.io/sii-scrna-seq/scrnaseq-standardised-pipeline:latest"
+IMAGE="docker://ghcr.io/sii-scrna-seq/scready:latest"
 
 folder="$1"
 optional_csv_file="$2"

@@ -1,4 +1,4 @@
-# scRNAseq-Standardised-pipeline
+# scRready
 A Standardised basic pipeline, to quickly go from Cellranger mapping to the Seurat object
 
 From fastqfiles it generates SeuratObject, QC and save it as RDS (quickly!)
