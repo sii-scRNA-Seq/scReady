@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 env:
-  IMAGE: ghcr.io/sii-scrna-seq/scrnaseq-standardised-pipeline
+  IMAGE: ghcr.io/sii-scrna-seq/scready
 
 jobs:
   build-and-push:

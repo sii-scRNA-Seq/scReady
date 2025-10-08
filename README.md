@@ -28,12 +28,23 @@ Requirements:
 * An input directory `/path/to/output/` containing Cellranger outputs
 
 ### Running locally
+1) Pull Docker image `docker pull ghcr.io/sii-scrna-seq/scready:latest`. If you want a specific version, substitute this for `latest`.
+2) (optional) Save a custom config in current directory which will override the default config. Either:
 
-1) Pull Docker image `docker pull ghcr.io/sii-scrna-seq/scrnaseq-standardised-pipeline:latest`. If you want a specific version, substitute this for `latest`.
-2) Run Seurat part of pipeline:
+```
+docker run ghcr.io/sii-scrna-seq/scready --print-default-config > scReady.config
+``` 
+Or:
+
+```
+docker run ghcr.io/sii-scrna-seq/scready init-config
+```
+Then edit `scReady.config` with desired parameters. 
+
+3) Run the pipeline:
 ```
 docker run --rm -v "$PWD":/work \
-    ghcr.io/sii-scrna-seq/scrnaseq-standardised-pipeline:latest \
+    ghcr.io/sii-scrna-seq/scready \
     /path/to/output/
 ```
 
