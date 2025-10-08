@@ -432,10 +432,6 @@ QC.n.mad <- function(Seurat.object, n.mad=4) {
     geom_hline(aes(yintercept = max.Genes.thr), colour = "green", linetype = 2) +
     geom_vline(aes(xintercept = max.nUMI.thr), colour = "red", linetype = 2)
 
-  # Print individual plots
-  print(p1)
-  print(p2)
-
   # Combine plots using patchwork::wrap_plots
   combined_plot <- patchwork::wrap_plots(
     plotlist = list(p1, p2),
@@ -676,8 +672,8 @@ required_vars <- c(
 
 # Try to find the configuration file in different locations
 config_paths <- c(
-  file.path("R", "scReady.config"),  # Look in R subdirectory
-  "scReady.config"                  # Look in current directory
+  file.path("..", "config", "scReady.config"),  # Go up one level, then into config subdirectory
+  file.path("config", "scReady.config")         # Look in current directory's config subdirectory
 )
 
 config_found <- FALSE
