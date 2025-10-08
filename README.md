@@ -7,6 +7,8 @@ Requirements:
 * An input directory `/path/to/output/` containing Cellranger outputs
 
 ### Running locally
+
+#### Docker
 1) Pull Docker image `docker pull ghcr.io/sii-scrna-seq/scready:latest`. If you want a specific version, substitute this for `latest`.
 2) (optional) Save a custom config in current directory which will override the default config. Either:
 
@@ -25,6 +27,21 @@ Then edit `scReady.config` with desired parameters.
 docker run --rm -v "$PWD":/work \
     ghcr.io/sii-scrna-seq/scready \
     /path/to/output/
+```
+
+#### Apptainer
+
+```
+apptainer build scready_latest.sif docker://ghcr.io/sii-scrna-seq/scready:latest
+```
+
+```
+apptainer run docker://ghcr.io/sii-scrna-seq/scready --print-default-config > scReady.config
+```
+
+RUN (in background):
+```
+nohup apptainer run scready_latest.sif /path/to/output/ > scready.log 2>&1 &
 ```
 
 ### Running on MARS/HPC
