@@ -744,6 +744,7 @@ library(SingleCellExperiment)
 
 # Load dplyr for data manipulation
 library(dplyr)
+library(hdf5r)
 
 # Load SoupX for ambient RNA removal
 library(SoupX)

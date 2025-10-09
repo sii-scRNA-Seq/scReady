@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libcurl4-openssl-dev libglpk-dev \
         libcairo2-dev libxt-dev xorg-dev libpng-dev libjpeg-dev libtiff5-dev \
         libmagick++-dev \
+        libhdf5-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # App dir; separate from the working dir you’ll mount
