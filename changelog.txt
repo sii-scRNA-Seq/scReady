@@ -1,13 +1,22 @@
-22-08-25
+v 1.1
+handle .h5 if cellranger folders are not available
+config file
+harmony integration
+code comments improved
+TO DO:
+test cellhashR
+
+v 1.0.5 - 22-08-25
 bug AmbientRNA removal solved, added extra info on its results
 add extra prints for clarity
-HTO code bug solved
-Seurat 5
-miniforge env
 
-15-05-25
-Lavinia found doubletFinder was not working ok.
-Implemented scDblFinder, but I had to port everything to miniforge
+v 1.0.4
+HTO code bug solved
+
+v 1.0.3 - 15-05-25
+Seurat 5
+scDblFinder instead of DoubletFinder
+miniforge env
 
 14-05-25
 Completed Seurat V5 porting

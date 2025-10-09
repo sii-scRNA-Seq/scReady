@@ -28,7 +28,11 @@ docker run --rm -v "$PWD":/work \
 ```
 
 ### Running on MARS/HPC
-Run `sbatch run_slurm.sh /path/to/output/`
+1) Run the following to collect the latest `run_slurm.sh` script
+```
+wget -qO run_slurm.sh https://raw.githubusercontent.com/sii-scrna-seq/scready/main/dist/run_slurm.sh && chmod +x run_slurm.sh
+```
+2) Run `sbatch run_slurm.sh /path/to/output/`
 
 ## Contributing
 If you need to update R dependencies, edit `deps.R` and regenerate the `renv.lock`:
