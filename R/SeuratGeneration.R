@@ -650,7 +650,8 @@ extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, meth
 WritObject <- function(seurat.object, path, date, file.type, extra = NA) {
 
     # Validate file.type
-    if (!(file.type %in% c("Seurat", "AnnData", "SingleCellExperiment"))) {
+    if (!(file.type %in% c("Seurat", "SingleCellExperiment"))) {
+	#if (!(file.type %in% c("Seurat", "AnnData", "SingleCellExperiment"))) {
         stop("Unsupported file.type. Must be one of: 'Seurat', 'AnnData', or 'SingleCellExperiment'.")
     }
     
@@ -666,10 +667,10 @@ WritObject <- function(seurat.object, path, date, file.type, extra = NA) {
     if (file.type == "Seurat") {
         filename <- paste0(filename, ".Seurat.rds")
         saveRDS(seurat.object, file.path(path, filename))
-    } else if (file.type == "AnnData") {
-        filename <- paste0(filename, "_AnnData.h5Seurat")
-        SeuratDisk::SaveH5Seurat(seurat.object, filename = file.path(path, filename), overwrite = TRUE)
-		SeuratDisk::Convert(file.path(path, filename), dest = "h5ad", overwrite = TRUE)
+    #} else if (file.type == "AnnData") {
+    #    filename <- paste0(filename, "_AnnData.h5Seurat")
+    #    SeuratDisk::SaveH5Seurat(seurat.object, filename = file.path(path, filename), overwrite = TRUE)
+	#	SeuratDisk::Convert(file.path(path, filename), dest = "h5ad", overwrite = TRUE)
     } else if (file.type == "SingleCellExperiment") {
         filename <- paste0(filename, "_SCE.rds")
         sce <- as.SingleCellExperiment(seurat.object)
@@ -711,9 +712,9 @@ required_vars <- c(
   "var.features",        # Number of variable features to select
   "max.pca",             # Maximum number of principal components to calculate
   "var.explained",       # Proportion of variance to explain with PCA
+  "file.type",			 # File datatype to save
   "integration",         # Whether to perform data integration
-  "integration.method",  # Method to use for data integration
-  "file.type"			 # File datatype to save
+  "integration.method"   # Method to use for data integration
 )
 
 # Attempt to load config file from current directory. If missing, load default config
