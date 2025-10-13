@@ -1,25 +1,5 @@
 #!/usr/bin/env Rscript
 
-# v 1.1
-# handle .h5 if cellranger folders are not available
-# config file
-# harmony integration
-# code comments improved
-# TO DO:
-# test cellhashR
-
-# v 1.0.5
-# bug AmbientRNA removal solved, added extra info on its results
-# add extra prints for clarity
-
-# v 1.0.4
-# HTO code bug solved
-
-# v 1.0.3
-# Seurat 5
-# scDblFinder instead of DoubletFinder
-# miniforge env
-
 ################################################################################
 #
 #
@@ -636,6 +616,72 @@ extract.HTO <- function(path, barcodeWhitelist = NULL, minCountPerCell = 5, meth
 }
 
 ################################################################################
+#' Save a Seurat Object in Various Formats
+#'
+#' This function saves a Seurat object in one of three supported formats:
+#' - Seurat (.rds)
+#' - AnnData (.h5ad via SeuratDisk)
+#' - SingleCellExperiment (.rds)
+#'
+#' @param seurat.object A Seurat object to be saved.
+#' @param path Character string specifying the directory where the file will be saved.
+#' @param date Character string representing the date (or any prefix) to be included in the filename.
+#'             If missing, the current date in `YYYY-MM-DD` format will be used.
+#' @param file.type Character string specifying the output format. Must be one of:
+#'             `"Seurat"`, `"AnnData"`, or `"SingleCellExperiment"`.
+#' @param extra Character string to be inserted between the file type and extension (e.g., "merged").
+#'             Default is NA (no extra text).
+#'
+#' @return Character string with the full path to the saved file.
+#'
+#' @examples
+#' # Save a Seurat object as an .rds file
+#' WritObject(seurat.object = my_seurat_obj, path = "results/", date = "2025-10-09", file.type = "Seurat", extra = "merged")
+#'
+#' # Save as AnnData (.h5ad)
+#' WritObject(seurat.object = my_seurat_obj, path = "results/", date = "2025-10-09", file.type = "AnnData", extra = "integrated")
+#'
+#' # Save as SingleCellExperiment (.rds)
+#' WritObject(seurat.object = my_seurat_obj, path = "results/", date = "2025-10-09", file.type = "SingleCellExperiment", extra = "processed")
+#'
+#' @importFrom SeuratDisk SaveH5Seurat Convert
+#' @export
+################################################################################
+WritObject <- function(seurat.object, path, date, file.type, extra = NA) {
+
+    # Validate file.type
+    if (!(file.type %in% c("Seurat", "SingleCellExperiment"))) {
+	#if (!(file.type %in% c("Seurat", "AnnData", "SingleCellExperiment"))) {
+        stop("Unsupported file.type. Must be one of: 'Seurat', 'AnnData', or 'SingleCellExperiment'.")
+    }
+    
+    # Build filename components
+    filename <- date
+    
+    # Add extra text if provided
+    if (!is.na(extra)) {
+        filename <- paste(filename, extra, sep = "_")
+    }
+    
+    # Add file type and extension
+    if (file.type == "Seurat") {
+        filename <- paste0(filename, ".Seurat.rds")
+        saveRDS(seurat.object, file.path(path, filename))
+    #} else if (file.type == "AnnData") {
+    #    filename <- paste0(filename, "_AnnData.h5Seurat")
+    #    SeuratDisk::SaveH5Seurat(seurat.object, filename = file.path(path, filename), overwrite = TRUE)
+	#	SeuratDisk::Convert(file.path(path, filename), dest = "h5ad", overwrite = TRUE)
+    } else if (file.type == "SingleCellExperiment") {
+        filename <- paste0(filename, "_SCE.rds")
+        sce <- as.SingleCellExperiment(seurat.object)
+        saveRDS(sce, file.path(path, filename))
+    }
+    
+    message("Saved ", file.type, " object to: ", file.path(path, filename))
+    return(file.path(path, filename))
+}
+
+################################################################################
 #
 #
 # 			SCRIPT SECTION
@@ -662,10 +708,12 @@ required_vars <- c(
   "ADT.normalize.scale", # Whether to normalize and scale ADT data
   "souporcell_folder",   # Path to Souporcell output folder
   "save.pre_QC",         # Whether to save data before QC filtering
+  "organism",			 # Organism to select the appropriate QC genes
   "n.mad",               # Number of median absolute deviations for outlier detection
   "var.features",        # Number of variable features to select
   "max.pca",             # Maximum number of principal components to calculate
   "var.explained",       # Proportion of variance to explain with PCA
+  "file.type",			 # File datatype to save
   "integration",         # Whether to perform data integration
   "integration.method"   # Method to use for data integration
 )
@@ -744,6 +792,7 @@ library(SingleCellExperiment)
 
 # Load dplyr for data manipulation
 library(dplyr)
+library(hdf5r)
 
 # Load SoupX for ambient RNA removal
 library(SoupX)
@@ -870,9 +919,9 @@ for (name in runs) {
 	  }
     }
 
-	# Handle cases where SoupX fails (e.g., low cell diversity)
-    if (inherits(list.data[[name]], "try-error")) {
-	  list.ambient.result[[name]] = "Ambient removal failed"
+	# Handle cases where SoupX fails (e.g., low cell diversity) or user selection
+    if (inherits(list.data[[name]], "try-error")| ambient.removal==FALSE) {
+	  list.ambient.result[[name]] = "Ambient removal skipped"
       if (typeof(data)=="list"){
          list.data[[name]]=data$`Gene Expression`
       } else {
@@ -915,8 +964,13 @@ for (i in 1:length(list.data)) {
   Seurat.object = CreateSeuratObject(counts = list.data[[i]], project = name, min.cells = min.cells, min.features = min.features)
   
   # Calculate quality control metrics
-  Seurat.object = Calc.Perc.Features(Seurat.object)
-
+  if (organism=="human"){
+	Seurat.object = Calc.Perc.Features(Seurat.object)
+  } else if (organism=="mouse") {
+	Seurat.object = Calc.Perc.Features(Seurat.object, mt.pattern = "^mt-", hb.pattern = "^Hb[^(p)]", ribo.pattern = "^Rps|^Rpl", MALAT1.name = "Malat1")
+  } else {
+	stop("Organism not know, only 'mouse' or 'human' available")
+  }
   # Doublet detection using scDblFinder
   sce <- as.SingleCellExperiment(Seurat.object)
   sce <- scDblFinder::scDblFinder(sce)
@@ -1150,9 +1204,7 @@ merged.Seurat <- RunUMAP(object = merged.Seurat, dims = 1:min.pca)
 merged.Seurat <- FindNeighbors(merged.Seurat, dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
 
 # Save the merged Seurat object
-filename = paste0(date, "_Seurat.merged.rds")
-save_path = file.path(path.to.read, filename)
-saveRDS(merged.Seurat, save_path)
+WritObject(merged.Seurat, path.to.read, date, file.type = file.type, extra = "merged")
 
 # Perform data integration if enabled
 if (integration) {
@@ -1163,15 +1215,22 @@ if (integration) {
 		merged.Seurat <- RunUMAP(merged.Seurat, reduction = "harmony", dims=1:min.pca)
 		merged.Seurat <- FindNeighbors(merged.Seurat, reduction = "harmony", dims=1:min.pca) %>% FindClusters(resolution = 0.1)
 	} else if(integration.method == "seurat") {
-		#TO DO
+		merged.Seurat[["RNA"]] <- split(merged.Seurat[["RNA"]], f = merged.Seurat$orig.ident)
+		merged.Seurat <- IntegrateLayers(merged.Seurat, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", verbose=F)
+		# Run UMAP and clustering on RPCA results
+		merged.Seurat <- FindNeighbors(merged.Seurat, reduction = "integrated.rpca", dims = 1:min.pca)
+		merged.Seurat <- FindClusters(merged.Seurat, resolution = 0.1, cluster.name = "rpca_clusters")
+		merged.Seurat[["RNA"]] <- JoinLayers(merged.Seurat[["RNA"]])
 	} else {
     warning("Unknown integration method: ", integration.method,
             ". Skipping integration.")
 	}
 	
-	# Save the integrated Seurat object
-	filename=paste0(date,"_Seurat.integrated.rds")
-	saveRDS(merged.Seurat, file.path(path.to.read, filename))
+	DimPlot(merged.Seurat)
+	# Save the integrated object
+	WritObject(merged.Seurat, path.to.read, date, file.type = file.type, extra = "integrated")
+
+	message("Object saved")
 }
 
 # Close the PDF device

@@ -32,6 +32,8 @@ jobs:
                 done
                 echo "After extraction:"
                 find tests -maxdepth 2 -type d -print
+            - name: Copy local config
+              run: cp config/scReady.config .
             - name: Run smoke test
               run: |
                 docker run --rm \
