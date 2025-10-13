@@ -966,7 +966,7 @@ for (i in 1:length(list.data)) {
   # Calculate quality control metrics
   if (organism=="human"){
 	Seurat.object = Calc.Perc.Features(Seurat.object)
-  } else if (organism=="mouse")
+  } else if (organism=="mouse") {
 	Seurat.object = Calc.Perc.Features(Seurat.object, mt.pattern = "^mt-", hb.pattern = "^Hb[^(p)]", ribo.pattern = "^Rps|^Rpl", MALAT1.name = "Malat1")
   } else {
 	stop("Organism not know, only 'mouse' or 'human' available")
