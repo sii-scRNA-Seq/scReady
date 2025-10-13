@@ -1215,12 +1215,18 @@ if (integration) {
 		merged.Seurat <- RunUMAP(merged.Seurat, reduction = "harmony", dims=1:min.pca)
 		merged.Seurat <- FindNeighbors(merged.Seurat, reduction = "harmony", dims=1:min.pca) %>% FindClusters(resolution = 0.1)
 	} else if(integration.method == "seurat") {
-		#TO DO
+		merged.Seurat[["RNA"]] <- split(merged.Seurat[["RNA"]], f = merged.Seurat$orig.ident)
+		merged.Seurat <- IntegrateLayers(merged.Seurat, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", verbose=F)
+		# Run UMAP and clustering on RPCA results
+		merged.Seurat <- FindNeighbors(merged.Seurat, reduction = "integrated.rpca", dims = 1:min.pca)
+		merged.Seurat <- FindClusters(merged.Seurat, resolution = 0.1, cluster.name = "rpca_clusters")
+		merged.Seurat[["RNA"]] <- JoinLayers(merged.Seurat[["RNA"]])
 	} else {
     warning("Unknown integration method: ", integration.method,
             ". Skipping integration.")
 	}
 	
+	DimPlot(merged.Seurat)
 	# Save the integrated object
 	WritObject(merged.Seurat, path.to.read, date, file.type = file.type, extra = "integrated")
 
