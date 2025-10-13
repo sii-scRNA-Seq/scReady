@@ -968,7 +968,7 @@ for (i in 1:length(list.data)) {
 	Seurat.object = Calc.Perc.Features(Seurat.object)
   } else if (organism=="mouse")
 	Seurat.object = Calc.Perc.Features(Seurat.object, mt.pattern = "^mt-", hb.pattern = "^Hb[^(p)]", ribo.pattern = "^Rps|^Rpl", MALAT1.name = "Malat1")
-  ) else {
+  } else {
 	stop("Organism not know, only 'mouse' or 'human' available")
   }
   # Doublet detection using scDblFinder
