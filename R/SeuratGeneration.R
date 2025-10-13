@@ -708,6 +708,7 @@ required_vars <- c(
   "ADT.normalize.scale", # Whether to normalize and scale ADT data
   "souporcell_folder",   # Path to Souporcell output folder
   "save.pre_QC",         # Whether to save data before QC filtering
+  "organism",			 # Organism to select the appropriate QC genes
   "n.mad",               # Number of median absolute deviations for outlier detection
   "var.features",        # Number of variable features to select
   "max.pca",             # Maximum number of principal components to calculate
@@ -918,9 +919,9 @@ for (name in runs) {
 	  }
     }
 
-	# Handle cases where SoupX fails (e.g., low cell diversity)
-    if (inherits(list.data[[name]], "try-error")) {
-	  list.ambient.result[[name]] = "Ambient removal failed"
+	# Handle cases where SoupX fails (e.g., low cell diversity) or user selection
+    if (inherits(list.data[[name]], "try-error")| ambient.removal==FALSE) {
+	  list.ambient.result[[name]] = "Ambient removal skipped"
       if (typeof(data)=="list"){
          list.data[[name]]=data$`Gene Expression`
       } else {
@@ -963,8 +964,13 @@ for (i in 1:length(list.data)) {
   Seurat.object = CreateSeuratObject(counts = list.data[[i]], project = name, min.cells = min.cells, min.features = min.features)
   
   # Calculate quality control metrics
-  Seurat.object = Calc.Perc.Features(Seurat.object)
-
+  if (organism=="human"){
+	Seurat.object = Calc.Perc.Features(Seurat.object)
+  } else if (organism=="mouse")
+	Seurat.object = Calc.Perc.Features(Seurat.object, mt.pattern = "^mt-", hb.pattern = "^Hb[^(p)]", ribo.pattern = "^Rps|^Rpl", MALAT1.name = "Malat1")
+  ) else {
+	stop("Organism not know, only 'mouse' or 'human' available")
+  }
   # Doublet detection using scDblFinder
   sce <- as.SingleCellExperiment(Seurat.object)
   sce <- scDblFinder::scDblFinder(sce)
