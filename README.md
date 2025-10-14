@@ -85,10 +85,11 @@ nohup apptainer run scready_latest.sif /path/to/output/ /path/to/metadata.csv > 
 
 You might need to adjust the --bind flag if your data is not in the current directory.
 
-### Running on MARS/HPC
+### Running on HPC using slurm
 1) Run the following to collect the latest `run_slurm.sh` script
 ```
 wget -qO run_slurm.sh https://raw.githubusercontent.com/sii-scrna-seq/scready/main/dist/run_slurm.sh && chmod +x run_slurm.sh
+wget -qO scReady.config https://github.com/sii-scRNA-Seq/scReady/raw/refs/heads/main/config/scReady.config
 ```
 Modify it a accordingly to your HPC requests (ask your admin/facility)
 
