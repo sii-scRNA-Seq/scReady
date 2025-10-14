@@ -1192,6 +1192,11 @@ merged.Seurat <- RunUMAP(object = merged.Seurat, dims = 1:min.pca)
 # Find neighbors and clusters
 merged.Seurat <- FindNeighbors(merged.Seurat, dims = 1:min.pca) %>% FindClusters(resolution = 0.1)
 
+plot <- DimPlot(merged.Seurat)		
+plot <- plot + ggtitle("pre integration") +
+theme(plot.title = element_text(hjust = 0.5))
+print(plot)
+
 # Save the merged Seurat object
 WritObject(merged.Seurat, path.to.read, date, file.type = file.type, extra = "merged")
 
@@ -1221,7 +1226,11 @@ if (integration) {
 	}
 	
 	if (integration_successful) {
-		plot(DimPlot(merged.Seurat))
+		plot <- DimPlot(merged.Seurat)		
+		plot <- plot + ggtitle("post integration") +
+		theme(plot.title = element_text(hjust = 0.5))
+		print(plot)
+		
 		# Save the integrated object
 		WritObject(merged.Seurat, path.to.read, date, file.type = file.type, extra = "integrated")
 		message("Object saved")
