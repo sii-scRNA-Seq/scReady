@@ -419,7 +419,7 @@ QC.n.mad <- function(Seurat.object, n.mad=4) {
     guides = "collect"
   ) +
     patchwork::plot_annotation(
-      title = names(Seurat.object),
+      title = unique(Seurat.object$orig.ident),
       theme = theme(plot.title = element_text(hjust = 0.5))
     )
 
@@ -909,6 +909,9 @@ for (name in runs) {
 
       print("trying hashtag...")
 	  # Extract HTO data if present
+	  plot.new()
+	  text(0.5, 0.5, paste(name, " searching for HTO"), 
+      cex = 1.5, font = 2)
       HTO = try(extract.HTO(path_name_filtered, barcodeWhitelist = HTO.features, datatypeName = "Antibody Capture"))  
     if (inherits(HTO, "try-error")) { 
 	  print("HTO failed")
@@ -1040,12 +1043,12 @@ if(length(Seurat.list)>1) {
 
 # Generate pre-QC visualization plots
 message("Generating pre-QC visualization plots")
-plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident") + ggtitle( "UMI Counts by Sample"))
-plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident") + ggtitle( "Feature Counts by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident") + ggtitle( "Mitochondrial Content by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.hb", split.by = "orig.ident") + ggtitle( "Hemoglobin Content by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.ribo", split.by = "orig.ident") + ggtitle( "Ribosomal Content by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident") + ggtitle( "MALAT1 Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident") + ggtitle("Pre-QC: UMI Counts by Sample"))
+plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident") + ggtitle("Pre-QC: Feature Counts by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident") + ggtitle("Pre-QC: Mitochondrial Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.hb", split.by = "orig.ident") + ggtitle("Pre-QC: Hemoglobin Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.ribo", split.by = "orig.ident") + ggtitle("Pre-QC: Ribosomal Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident") + ggtitle("Pre-QC: MALAT1 Content by Sample"))
 
 #clean up
 rm(merged.Seurat)
@@ -1096,7 +1099,7 @@ for (i in 1:length(Seurat.list)) {
 
   # 9. Visualize doublets
   plot <- DimPlot(Seurat.list[[i]], group.by = "scDblFinder_DropletType")
-  plot <- plot + ggtitle(names(Seurat.list[[i]])) +
+  plot <- plot + ggtitle(unique(Seurat.list[[i]]$orig.ident)) +
   theme(plot.title = element_text(hjust = 0.5))  # Center the title
   print(plot)
  }
@@ -1123,12 +1126,12 @@ if(length(Seurat.list)>1) {
 # Generate post-QC visualization plots
 message("Generating post-QC visualization plots...")
 Idents(merged.Seurat) <- "orig.ident"
-plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident") + ggtitle( "Post-QC: UMI Counts by Sample"))
-plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident") + ggtitle( "Post-QC: Feature Counts by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident") + ggtitle( "Post-QC: Mitochondrial Content by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.hb", split.by = "orig.ident") + ggtitle( "Post-QC: Hemoglobin Content by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.ribo", split.by = "orig.ident") + ggtitle( "Post-QC: Ribosomal Content by Sample"))
-plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident") + ggtitle( "Post-QC: MALAT1 Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "nCount_RNA", split.by = "orig.ident") + ggtitle("Post-QC: UMI Counts by Sample"))
+plot(VlnPlot(merged.Seurat, features = "nFeature_RNA", split.by = "orig.ident") + ggtitle("Post-QC: Feature Counts by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.mt", split.by = "orig.ident") + ggtitle("Post-QC: Mitochondrial Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.hb", split.by = "orig.ident") + ggtitle("Post-QC: Hemoglobin Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.ribo", split.by = "orig.ident") + ggtitle("Post-QC: Ribosomal Content by Sample"))
+plot(VlnPlot(merged.Seurat, features = "percent.MALAT1", split.by = "orig.ident") + ggtitle("Post-QC: MALAT1 Content by Sample"))
 
 # Clean up memory
 gc()
@@ -1212,12 +1215,14 @@ if (integration) {
 		merged.Seurat <- FindNeighbors(merged.Seurat, reduction = "harmony", dims=1:min.pca) %>% FindClusters(resolution = 0.1)
 		integration_successful <- TRUE
 	} else if(integration.method == "seurat") {
-		message("Harmony integration")
+		message("Seurat RPCA integration")
 		merged.Seurat[["RNA"]] <- split(merged.Seurat[["RNA"]], f = merged.Seurat$orig.ident)
 		merged.Seurat <- IntegrateLayers(merged.Seurat, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", verbose=F)
 		# Run UMAP and clustering on RPCA results
+		DefaultAssay(merged.Seurat) <- "integrated.rpca"
 		merged.Seurat <- FindNeighbors(merged.Seurat, reduction = "integrated.rpca", dims = 1:min.pca)
 		merged.Seurat <- FindClusters(merged.Seurat, resolution = 0.1, cluster.name = "rpca_clusters")
+		merged.Seurat <- RunUMAP(merged.Seurat, reduction = "integrated.rpca", dims = 1:min.pca)
 		merged.Seurat[["RNA"]] <- JoinLayers(merged.Seurat[["RNA"]])
 		integration_successful <- TRUE
 	} else {
