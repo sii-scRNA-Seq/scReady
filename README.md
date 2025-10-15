@@ -72,10 +72,6 @@ apptainer build scready_latest.sif docker://ghcr.io/sii-scrna-seq/scready:latest
 ```
 apptainer run docker://ghcr.io/sii-scrna-seq/scready --print-default-config > scReady.config
 ```
-Or
-```
-wget https://github.com/sii-scRNA-Seq/scReady/raw/refs/heads/main/config/scReady.config
-```
 Then edit `scReady.config` with desired parameters.
 
 Run scReady (in background):
