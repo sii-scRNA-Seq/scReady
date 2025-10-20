@@ -1205,6 +1205,8 @@ WritObject(merged.Seurat, path.to.read, date, file.type = file.type, extra = "me
 
 # Perform data integration if enabled
 if (integration) {
+  library(future)
+  options(future.globals.maxSize = 20 * 1024^3)  # 20 GB cap
 	integration_successful <- FALSE
 	if(integration.method == "harmony") {
 		message("Harmony integration")
