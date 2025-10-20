@@ -1205,8 +1205,12 @@ WritObject(merged.Seurat, path.to.read, date, file.type = file.type, extra = "me
 
 # Perform data integration if enabled
 if (integration) {
+  # Increase memory cap for integration
   library(future)
-  options(future.globals.maxSize = 20 * 1024^3)  # 20 GB cap
+  library(ps)
+  total_bytes <- ps::ps_system_memory()$total
+  cap <- as.numeric(total_bytes * 0.8)   # 80% of total RAM
+  options(future.globals.maxSize = cap)
 	integration_successful <- FALSE
 	if(integration.method == "harmony") {
 		message("Harmony integration")
