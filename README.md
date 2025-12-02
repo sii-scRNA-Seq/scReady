@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/817825035.svg)](https://doi.org/10.5281/zenodo.17789689)
 # scRready
 A pipeline, that automates and standardizes preprocessing for scRNA-seq data
 
