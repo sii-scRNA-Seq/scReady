@@ -994,8 +994,7 @@ for (i in 1:length(list.data)) {
   # Add CITE-seq data if available
   if (name %in% names(list.data.citeseq)) {
 
-	#adt = list.data.citeseq[[name]]
-	adt <- list.data.citeseq[[name]][, 1:100]
+	adt = list.data.citeseq[[name]]
 
 	# Initialize zero matrix
 	full_mat <- Matrix::Matrix(0, 
