@@ -993,7 +993,31 @@ for (i in 1:length(list.data)) {
 
   # Add CITE-seq data if available
   if (name %in% names(list.data.citeseq)) {
-    Seurat.object[['Protein']]=CreateAssayObject(counts = list.data.citeseq[[name]])
+
+	adt = list.data.citeseq[[name]]
+
+	# Initialize zero matrix
+	full_mat <- Matrix::Matrix(0, 
+					nrow = nrow(adt), 
+					ncol = ncol(Seurat.object),
+					sparse = TRUE)
+	rownames(full_mat) <- rownames(adt)
+	colnames(full_mat) <- colnames(Seurat.object)
+
+    # Get common cells
+    common_cells <- intersect(colnames(full_mat), colnames(adt))
+  
+    if (length(common_cells) > 0) {
+  	  # Extract the subset of adt for common cells
+	  adt_common <- adt[, common_cells, drop = FALSE]
+	
+	  # Create indices for assignment
+	  cell_indices <- match(common_cells, colnames(full_mat))
+	
+	  # Assign values - use direct assignment with indices
+	  full_mat[, cell_indices] <- adt_common
+    }
+	Seurat.object[['Protein']]=CreateAssayObject(counts = full_mat)
   }
 
   # Add SNP data if available
